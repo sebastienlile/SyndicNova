@@ -115,6 +115,8 @@ td{padding:13px 16px;vertical-align:middle}
 .badge.attente{background:#F3F4F6;color:#9CA3AF}
 .num{font-family:var(--ft);font-weight:700}
 .num-unit{font-size:11px;color:var(--text-sec)}
+.view-btn{display:inline-block;padding:5px 12px;background:var(--accent-l);color:var(--accent);border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;transition:all 150ms}
+.view-btn:hover{background:var(--accent);color:#fff}
 .empty-row{padding:48px;text-align:center;color:var(--text-sec)}
 .empty-row .ei{font-size:32px;margin-bottom:8px}
 .loading-row{padding:40px;text-align:center;color:var(--text-sec);font-size:13px}
@@ -262,6 +264,7 @@ td{padding:13px 16px;vertical-align:middle}
               <th>Lots</th>
               <th>Inscription</th>
               <th>Statut</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="tbody">
@@ -347,11 +350,11 @@ async function load() {
     render();
   } catch(e) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="6"><div class="empty-row"><div class="ei">⚠️</div>${e.message}</div></td></tr>`;
+      `<tr><td colspan="7"><div class="empty-row"><div class="ei">⚠️</div>${e.message}</div></td></tr>`;
   }
 }
 
-async function reload() { USERS=[]; document.getElementById('tbody').innerHTML='<tr><td colspan="6"><div class="loading-row">Chargement…</div></td></tr>'; await load(); }
+async function reload() { USERS=[]; document.getElementById('tbody').innerHTML='<tr><td colspan="7"><div class="loading-row">Chargement…</div></td></tr>'; await load(); }
 
 // ── KPI ──
 function renderKPI() {
@@ -391,7 +394,7 @@ function render() {
 
   if(!rows.length) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="6"><div class="empty-row"><div class="ei">🔍</div>Aucun client trouvé</div></td></tr>`;
+      `<tr><td colspan="7"><div class="empty-row"><div class="ei">🔍</div>Aucun client trouvé</div></td></tr>`;
     return;
   }
 
@@ -418,6 +421,7 @@ function render() {
       <td><span class="num">${u.lots}</span> <span class="num-unit">lot${u.lots>1?'s':''}</span></td>
       <td style="color:var(--text-sec);font-size:12px">${date}</td>
       <td><span class="badge ${actif?'actif':'attente'}">${actif?'Actif':'En attente'}</span></td>
+      <td><a href="app.html?view=${u.id}" target="_blank" class="view-btn">Voir dashboard →</a></td>
     </tr>`;
   }).join('');
 }

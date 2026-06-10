@@ -97,6 +97,7 @@ html.demo-mode #app{display:flex!important}
 
 /* ── APP SHELL ── */
 #app{display:none;height:100vh;overflow:hidden}
+body.admin-view #app{padding-top:36px}
 .sidebar{position:fixed;top:0;left:0;width:var(--sw);height:100vh;background:var(--accent);display:flex;flex-direction:column;z-index:100;transition:transform var(--tr)}
 .sb-logo{padding:20px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
 .sb-logo .row{display:flex;align-items:center;gap:9px}
@@ -418,6 +419,12 @@ function doLogout(){
 <!-- ══════════════════════ APP ══════════════════════ -->
 <div id="app">
   <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+
+  <!-- BANNIÈRE ADMIN VIEW -->
+  <div id="admin-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#B07D4A;color:#fff;padding:8px 20px;font-size:13px;font-weight:600;align-items:center;gap:16px;font-family:var(--ft)">
+    <span id="admin-bar-lbl"></span>
+    <a href="admin.html" style="margin-left:auto;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:4px 14px;font-size:12px;text-decoration:none;font-weight:700">← Retour admin</a>
+  </div>
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
@@ -981,6 +988,8 @@ function closeSidebarMobile() { if(window.innerWidth<=680) qs('sidebar').classLi
 
 // ── Mode démo / bypass auth ──
 const DEMO_MODE = new URLSearchParams(location.search).get('demo') !== null;
+const VIEW_UID  = new URLSearchParams(location.search).get('view') || null;
+const ADMIN_EMAIL = 'sebastien95360@gmail.com';
 if(DEMO_MODE) {
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('ob-screen').style.display   = 'none';
@@ -1017,6 +1026,25 @@ if(!auth) { console.error('Firebase Auth non initialisé — vérifie la config 
   }
   CU = user;
   qs('auth-screen').style.display = 'none';
+
+  // Mode vue admin — charger les données d'un client
+  if(VIEW_UID && user.email === ADMIN_EMAIL) {
+    const clientSnap = await db.collection('users').doc(VIEW_UID).get();
+    const clientData = clientSnap.data() || {};
+    qs('ob-screen').style.display = 'none';
+    const bar = document.getElementById('admin-bar');
+    if(bar) {
+      bar.style.display = 'flex';
+      document.body.classList.add('admin-view');
+      const lbl = document.getElementById('admin-bar-lbl');
+      if(lbl) lbl.textContent = '👁️ Vue admin : ' + (clientData.nom || clientData.email || VIEW_UID);
+    }
+    // Charger les copros du client ciblé
+    CU = { uid: VIEW_UID, email: clientData.email };
+    await initApp(clientData);
+    return;
+  }
+
   const snap = await db.collection('users').doc(user.uid).get();
   const data = snap.data() || {};
   if(!data.onboarding_complete) {
