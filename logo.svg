@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Fond bleu arrondi -->
+  <rect width="32" height="32" rx="7" fill="#2C4A6E"/>
+
+  <!-- Bâtiment bas (large) -->
+  <rect x="4" y="18" width="24" height="10" rx="1.5" fill="white"/>
+  <!-- Bâtiment haut (tour) -->
+  <rect x="9" y="11" width="14" height="9" rx="1.5" fill="white"/>
+
+  <!-- Fenêtres bâtiment bas -->
+  <rect x="6.5" y="20.5" width="4" height="3.5" rx="0.8" fill="#2C4A6E"/>
+  <rect x="14"   y="20.5" width="4" height="3.5" rx="0.8" fill="#2C4A6E" opacity="0.35"/>
+  <rect x="21.5" y="20.5" width="4" height="3.5" rx="0.8" fill="#2C4A6E"/>
+
+  <!-- Porte -->
+  <rect x="13.5" y="23.5" width="5" height="4.5" rx="0.8" fill="#2C4A6E" opacity="0.6"/>
+
+  <!-- Fenêtre tour -->
+  <rect x="12" y="13" width="8" height="4" rx="0.8" fill="#2C4A6E" opacity="0.45"/>
+
+  <!-- Étoile Nova (cuivre + blanc) -->
+  <circle cx="25.5" cy="6.5" r="3.5" fill="#B07D4A"/>
+  <path d="M25.5,4 L26.15,5.85 L28.1,6.5 L26.15,7.15 L25.5,9 L24.85,7.15 L22.9,6.5 L24.85,5.85 Z" fill="white"/>
+</svg>

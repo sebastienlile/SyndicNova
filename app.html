@@ -1,0 +1,2046 @@
+<!DOCTYPE html>
+<html lang="fr" id="html-root">
+<script>if(location.search.includes('demo'))document.documentElement.classList.add('demo-mode');</script>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SyndicNova — Application</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase v9 compat -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+<style>
+/* ── VARIABLES ── */
+:root {
+  --bg:#F8F7F4;--white:#FFFFFF;--text:#1C1C1E;--text-sec:#6B6B6E;
+  --accent:#2C4A6E;--accent-l:#E8EEF5;--accent-m:#D0DCEC;
+  --copper:#B07D4A;--copper-l:#F5EDE0;
+  --green:#28A745;--green-l:#EDF7F0;
+  --red:#DC3545;--red-l:#FFF0F0;
+  --orange:#E87A1D;--orange-l:#FFF4E8;
+  --yellow:#F5A623;--yellow-l:#FFFBF0;
+  --border:#E5E5EA;
+  --shadow:0 2px 12px rgba(0,0,0,0.07);
+  --shadow-md:0 6px 32px rgba(0,0,0,0.12);
+  --r:8px;--sw:260px;
+  --ft:'Plus Jakarta Sans',sans-serif;--fb:'Instrument Sans',sans-serif;
+  --tr:200ms ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fb);background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;min-height:100vh}
+
+/* ── TOAST ── */
+#toasts{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:12px 18px;border-radius:var(--r);font-size:13px;font-weight:600;box-shadow:var(--shadow-md);animation:tin .2s ease forwards;max-width:320px;display:flex;align-items:center;gap:8px;pointer-events:all}
+.toast.s{background:var(--green);color:#fff}.toast.e{background:var(--red);color:#fff}
+.toast.i{background:var(--accent);color:#fff}.toast.w{background:var(--orange);color:#fff}
+@keyframes tin{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes tout{from{opacity:1}to{opacity:0;transform:translateX(110%)}}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 18px;border-radius:var(--r);font-family:var(--fb);font-size:13px;font-weight:600;cursor:pointer;transition:var(--tr);border:none;text-decoration:none;white-space:nowrap}
+.btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:#1e3550}
+.btn-s{background:var(--accent-l);color:var(--accent)}.btn-s:hover{background:var(--accent-m)}
+.btn-g{background:transparent;color:var(--text-sec);border:1.5px solid var(--border)}.btn-g:hover{background:var(--bg)}
+.btn-d{background:var(--red-l);color:var(--red)}.btn-d:hover{background:#ffddd9}
+.btn-cu{background:var(--copper);color:#fff}.btn-cu:hover{background:#8f6338}
+.btn-full{width:100%}.btn-sm{padding:6px 12px;font-size:12px}.btn-lg{padding:12px 24px;font-size:15px}
+.btn:disabled{opacity:.45;cursor:not-allowed;pointer-events:none}
+
+/* ── FORMS ── */
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;font-weight:700;color:var(--text-sec);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-family:var(--fb);font-size:13px;color:var(--text);background:var(--white);transition:var(--tr);outline:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(44,74,110,.1)}
+.fg textarea{resize:vertical;min-height:80px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.fs{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+.fs:last-child{border-bottom:none;padding-bottom:0}
+.fs-title{font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+
+/* ── DEMO MODE ── */
+html.demo-mode #auth-screen{display:none!important}
+html.demo-mode #ob-screen{display:none!important}
+html.demo-mode #app{display:flex!important}
+
+/* ── AUTH ── */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a2f47 0%,#2C4A6E 100%);padding:20px}
+.auth-card{background:var(--white);border-radius:14px;padding:40px 36px;width:100%;max-width:400px;box-shadow:var(--shadow-md)}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo .mk{width:48px;height:48px;background:var(--accent);border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--ft);font-weight:800;font-size:18px;color:#fff;margin-bottom:10px}
+.auth-logo h1{font-family:var(--ft);font-size:22px;font-weight:700;color:var(--accent)}
+.auth-logo p{color:var(--text-sec);font-size:13px;margin-top:3px}
+.auth-tabs{display:flex;background:var(--bg);border-radius:var(--r);padding:3px;margin-bottom:24px;gap:3px}
+.auth-tab{flex:1;padding:7px;text-align:center;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-sec);transition:var(--tr);border:none;background:none}
+.auth-tab.on{background:var(--white);color:var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.auth-link{text-align:center;margin-top:14px;font-size:12px;color:var(--text-sec)}
+.auth-link a{color:var(--accent);text-decoration:none;font-weight:700}
+
+/* ── ONBOARDING ── */
+#ob-screen{display:none;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a2f47 0%,#2C4A6E 100%);padding:20px}
+.wiz-card{background:var(--white);border-radius:14px;padding:40px 36px;width:100%;max-width:520px;box-shadow:var(--shadow-md)}
+.wiz-bar{display:flex;gap:6px;margin-bottom:28px}
+.wiz-seg{flex:1;height:4px;background:var(--border);border-radius:2px;transition:var(--tr)}
+.wiz-seg.done{background:var(--accent)}.wiz-seg.cur{background:var(--copper)}
+.wiz-title{font-family:var(--ft);font-size:20px;font-weight:700;margin-bottom:6px}
+.wiz-sub{color:var(--text-sec);font-size:13px;margin-bottom:24px}
+.wiz-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+
+/* ── APP SHELL ── */
+#app{display:none;height:100vh;overflow:hidden}
+.sidebar{position:fixed;top:0;left:0;width:var(--sw);height:100vh;background:var(--accent);display:flex;flex-direction:column;z-index:100;transition:transform var(--tr)}
+.sb-logo{padding:20px 18px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-logo .row{display:flex;align-items:center;gap:9px}
+.sb-logo .mk{width:32px;height:32px;background:rgba(255,255,255,.15);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:var(--ft);font-weight:800;font-size:13px;color:#fff}
+.sb-logo .name{font-family:var(--ft);font-weight:700;font-size:17px;color:#fff}
+.sb-logo .tag{font-size:10px;color:rgba(255,255,255,.5);margin-top:1px}
+.sb-copro{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-copro select{width:100%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;padding:7px 9px;font-size:12px;font-family:var(--fb);cursor:pointer;outline:none}
+.sb-copro select option{background:var(--accent);color:#fff}
+.sb-nav{flex:1;padding:10px 0;overflow-y:auto}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 18px;color:rgba(255,255,255,.65);cursor:pointer;transition:var(--tr);font-size:13px;font-weight:500;border-left:3px solid transparent;text-decoration:none}
+.ni:hover{background:rgba(255,255,255,.08);color:#fff}
+.ni.on{background:rgba(255,255,255,.14);color:#fff;border-left-color:var(--copper)}
+.ni .ic{font-size:15px;width:18px;text-align:center}
+.sb-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.1)}
+.sync-row{display:flex;align-items:center;gap:7px;font-size:11px;color:rgba(255,255,255,.55);margin-bottom:10px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.sync-dot.off{background:var(--red)}
+.btn-logout{width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.75);border-radius:var(--r);padding:8px;font-size:12px;font-family:var(--fb);font-weight:600;cursor:pointer;transition:var(--tr)}
+.btn-logout:hover{background:rgba(255,255,255,.16);color:#fff}
+.hamburger{display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--accent);border:none;border-radius:7px;width:38px;height:38px;cursor:pointer;align-items:center;justify-content:center;flex-direction:column;gap:5px}
+.hamburger span{display:block;width:18px;height:2px;background:#fff;border-radius:2px}
+
+/* ── MAIN ── */
+.main{margin-left:var(--sw);height:100vh;overflow-y:auto}
+.page{display:none;padding:28px 32px;min-height:100vh;animation:fp .2s ease}
+.page.on{display:block}
+@keyframes fp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:14px;flex-wrap:wrap}
+.ph-l h2{font-family:var(--ft);font-size:22px;font-weight:700;letter-spacing:-.3px}
+.ph-l p{color:var(--text-sec);font-size:13px;margin-top:3px}
+.ph-r{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:20px;border:1px solid rgba(0,0,0,.04)}
+.card-sm{padding:14px}
+.st{font-family:var(--ft);font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+
+/* ── GRIDS ── */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── KPI ── */
+.kpi{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;border:1px solid rgba(0,0,0,.04);position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.kpi.cu::after{background:var(--copper)}.kpi.re::after{background:var(--red)}.kpi.gr::after{background:var(--green)}
+.kpi-ic{font-size:24px;margin-bottom:6px}
+.kpi-val{font-family:var(--ft);font-size:26px;font-weight:800;color:var(--text)}
+.kpi-lbl{font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.kpi-sub{font-size:11px;color:var(--text-sec);margin-top:4px}
+
+/* ── ALERTS ── */
+.alert{padding:10px 14px;border-radius:var(--r);font-size:12px;font-weight:600;display:flex;align-items:center;gap:9px;border-left:3px solid}
+.alert.re{background:var(--red-l);border-color:var(--red);color:#7a0000}
+.alert.or{background:var(--orange-l);border-color:var(--orange);color:#6b2a00}
+.alert.ye{background:var(--yellow-l);border-color:var(--yellow);color:#5a3600}
+.alert.bl{background:var(--accent-l);border-color:var(--accent);color:var(--accent)}
+.alerts{display:flex;flex-direction:column;gap:7px;margin-bottom:20px}
+
+/* ── TABLE ── */
+.tw{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;background:var(--white)}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.4px;background:var(--bg);border-bottom:1px solid var(--border)}
+td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--accent-l);transition:var(--tr)}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.bg{background:var(--green-l);color:var(--green)}.br{background:var(--red-l);color:var(--red)}
+.bo{background:var(--orange-l);color:var(--orange)}.by{background:var(--yellow-l);color:var(--yellow)}
+.bb{background:var(--accent-l);color:var(--accent)}.bcu{background:var(--copper-l);color:var(--copper)}
+.bgr{background:var(--bg);color:var(--text-sec)}
+
+/* ── MODAL ── */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;padding:16px}
+.mo.open{display:flex}
+.modal{background:var(--white);border-radius:12px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-md)}
+.modal.lg{max-width:780px}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--white);z-index:1}
+.mh h3{font-family:var(--ft);font-size:16px;font-weight:700}
+.mc-btn{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-sec);line-height:1;padding:2px}
+.mc-btn:hover{color:var(--text)}
+.mb{padding:22px}
+.mf{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end;background:var(--bg)}
+
+/* ── TABS ── */
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:20px}
+.tb{padding:9px 18px;font-size:13px;font-weight:600;color:var(--text-sec);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--tr)}
+.tb.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tp{display:none}.tp.on{display:block}
+
+/* ── LOTS GRID ── */
+.lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.lot-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;border:1px solid rgba(0,0,0,.04);cursor:pointer;transition:var(--tr)}
+.lot-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--accent-l)}
+.lc-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.lc-num{font-family:var(--ft);font-size:17px;font-weight:700;color:var(--accent)}
+.lc-type{font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.4px;background:var(--bg);padding:2px 7px;border-radius:20px}
+.lc-owner{font-size:13px;font-weight:600;margin-bottom:3px}
+.lc-det{font-size:11px;color:var(--text-sec)}
+
+/* ── TIMELINE ── */
+.timeline{padding-left:22px;position:relative}
+.timeline::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;padding-bottom:18px}
+.tl-item::before{content:'';position:absolute;left:-18px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--white);box-shadow:0 0 0 2px var(--accent)}
+.tl-item.done::before{background:var(--green)}.tl-item.plan::before{background:var(--orange)}
+.tl-date{font-size:10px;font-weight:700;color:var(--text-sec);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.tl-box{background:var(--white);border-radius:var(--r);padding:10px 14px;border:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.04)}
+
+/* ── CHART ── */
+.cw{position:relative;width:100%;height:180px}
+canvas{width:100%!important;height:180px!important}
+
+/* ── PROGRESS ── */
+.prog-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s ease}
+
+/* ── SEND LIST ── */
+.send-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.send-item:last-child{border-bottom:none}
+.si-status{font-size:16px;width:22px;text-align:center}
+
+/* ── AG WIZARD STEPS ── */
+.ag-steps{display:flex;align-items:center;margin-bottom:24px}
+.ag-st{display:flex;align-items:center;flex:1}
+.ag-circle{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.ag-circle.pend{background:var(--border);color:var(--text-sec)}
+.ag-circle.cur{background:var(--accent);color:#fff}
+.ag-circle.done{background:var(--green);color:#fff}
+.ag-line{flex:1;height:2px;background:var(--border);margin:0 3px}
+.ag-line.done{background:var(--green)}
+
+/* ── SORTABLE ── */
+.sort-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--white);border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:7px;cursor:grab}
+.sort-item:hover{border-color:var(--accent);background:var(--accent-l)}
+.sort-item.dragging{opacity:.4}
+.drag-h{color:var(--text-sec);font-size:14px;cursor:grab}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:40px 20px;color:var(--text-sec)}
+.empty .ei{font-size:40px;margin-bottom:10px;opacity:.4}
+.empty h3{font-size:14px;font-weight:700;margin-bottom:5px;color:var(--text)}
+.empty p{font-size:12px}
+
+/* ── PLAN ── */
+.plan-card{border:2px solid var(--border);border-radius:var(--r);padding:18px;text-align:center;cursor:pointer;transition:var(--tr)}
+.plan-card:hover,.plan-card.sel{border-color:var(--accent);background:var(--accent-l)}
+.plan-price{font-family:var(--ft);font-size:26px;font-weight:800;color:var(--accent);margin:6px 0}
+.plan-price span{font-size:13px;font-weight:500;color:var(--text-sec)}
+
+/* ── FILTER BAR ── */
+.fbar{display:flex;align-items:center;gap:9px;margin-bottom:16px;flex-wrap:wrap}
+.fbar input,.fbar select{padding:7px 11px;border:1.5px solid var(--border);border-radius:var(--r);font-family:var(--fb);font-size:12px;background:var(--white);outline:none;transition:var(--tr)}
+.fbar input:focus,.fbar select:focus{border-color:var(--accent)}
+
+/* ── DOC CARD ── */
+.doc-card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:14px;border:1px solid rgba(0,0,0,.04);display:flex;flex-direction:column;gap:8px}
+.doc-icon{font-size:28px}
+.doc-name{font-size:13px;font-weight:600;word-break:break-word}
+.doc-meta{font-size:11px;color:var(--text-sec)}
+.doc-actions{display:flex;gap:6px;margin-top:4px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .page{padding:18px 14px}
+  .fr{grid-template-columns:1fr}.fr3{grid-template-columns:1fr 1fr}
+}
+@media(max-width:680px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}.hamburger{display:flex}
+  .g4,.g3,.g2{grid-template-columns:1fr}
+  .lg-grid{grid-template-columns:1fr}
+  .page{padding:56px 14px 20px}
+  .fr,.fr3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<script>
+// Fonctions auth — bloc isolé, indépendant de Firebase
+function qs(id){ return document.getElementById(id); }
+function toast(msg, type){
+  type = type||'i';
+  const t = qs('toasts');
+  if(!t) return;
+  const d = document.createElement('div');
+  d.className = 'toast '+type;
+  d.textContent = msg;
+  t.appendChild(d);
+  setTimeout(()=>{ d.style.animation='tout .2s ease forwards'; setTimeout(()=>d.remove(),200); }, 3500);
+}
+function doLogin(){
+  const email = qs('l-email').value.trim();
+  const pwd   = qs('l-pwd').value;
+  if(!email||!pwd){ toast('Remplissez tous les champs','w'); return; }
+  if(!window._auth){ toast('Firebase non initialisé','e'); return; }
+  window._auth.signInWithEmailAndPassword(email, pwd)
+    .catch(e => toast(e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'?'Email ou mot de passe incorrect':e.message,'e'));
+}
+function doSignup(){
+  const nom     = qs('s-nom').value.trim();
+  const email   = qs('s-email').value.trim();
+  const pwd     = qs('s-pwd').value;
+  const cabinet = qs('s-cabinet').value.trim();
+  if(!nom||!email||!pwd){ toast('Remplissez tous les champs','w'); return; }
+  if(pwd.length<6){ toast('Mot de passe : 6 caractères minimum','w'); return; }
+  if(!window._auth){ toast('Firebase non initialisé','e'); return; }
+  window._auth.createUserWithEmailAndPassword(email, pwd).then(cred => {
+    return window._db.collection('users').doc(cred.user.uid).set({
+      nom, email, cabinet, plan:'benevole',
+      onboarding_complete: false,
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }).catch(e => toast(e.code==='auth/email-already-in-use'?'Email déjà utilisé':e.message,'e'));
+}
+function doReset(e){
+  e.preventDefault();
+  const email = qs('l-email').value.trim();
+  if(!email){ toast('Saisissez votre email d\'abord','w'); return; }
+  if(!window._auth){ toast('Firebase non initialisé','e'); return; }
+  window._auth.sendPasswordResetEmail(email)
+    .then(()=>toast('Email de réinitialisation envoyé ✓','s'))
+    .catch(e=>toast(e.message,'e'));
+}
+function doLogout(){
+  if(window._auth) window._auth.signOut();
+}
+</script>
+<div id="toasts"></div>
+
+<!-- ══════════════════════ AUTH ══════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="logo.svg" alt="SyndicNova" width="48" height="48" style="border-radius:11px;display:block;margin:0 auto 10px">
+      <h1>SyndicNova</h1>
+      <p>Gestion de copropriété simplifiée</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="tab-btn-login"
+        onclick="document.getElementById('at-login').style.display='';document.getElementById('at-signup').style.display='none';document.getElementById('tab-btn-login').classList.add('on');document.getElementById('tab-btn-signup').classList.remove('on')">
+        Connexion
+      </button>
+      <button class="auth-tab" id="tab-btn-signup"
+        onclick="document.getElementById('at-signup').style.display='';document.getElementById('at-login').style.display='none';document.getElementById('tab-btn-signup').classList.add('on');document.getElementById('tab-btn-login').classList.remove('on')">
+        Créer un compte
+      </button>
+    </div>
+    <!-- LOGIN -->
+    <div id="at-login">
+      <div class="fg"><label>Email</label><input type="email" id="l-email" placeholder="vous@exemple.fr"></div>
+      <div class="fg"><label>Mot de passe</label><input type="password" id="l-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-p btn-full btn-lg" onclick="doLogin()">Se connecter</button>
+      <div class="auth-link"><a href="#" onclick="doReset(event)">Mot de passe oublié ?</a></div>
+    </div>
+    <!-- SIGNUP -->
+    <div id="at-signup" style="display:none">
+      <div class="fr"><div class="fg"><label>Nom complet</label><input type="text" id="s-nom" placeholder="Jean Dupont"></div><div class="fg"><label>Cabinet (optionnel)</label><input type="text" id="s-cabinet" placeholder="Nom du cabinet"></div></div>
+      <div class="fg"><label>Email</label><input type="email" id="s-email" placeholder="vous@exemple.fr"></div>
+      <div class="fg"><label>Mot de passe</label><input type="password" id="s-pwd" placeholder="8 caractères minimum" onkeydown="if(event.key==='Enter')doSignup()"></div>
+      <button class="btn btn-p btn-full btn-lg" onclick="doSignup()">Créer mon compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ ONBOARDING ══════════════════════ -->
+<div id="ob-screen">
+  <div class="wiz-card">
+    <div class="wiz-bar">
+      <div class="wiz-seg cur" id="ws1"></div>
+      <div class="wiz-seg" id="ws2"></div>
+      <div class="wiz-seg" id="ws3"></div>
+    </div>
+    <!-- STEP 1 -->
+    <div id="ob1">
+      <div class="wiz-title">Votre profil syndic</div>
+      <div class="wiz-sub">Ces informations figureront sur vos documents officiels.</div>
+      <div class="fr">
+        <div class="fg"><label>Nom complet</label><input type="text" id="ob-nom" placeholder="Jean Dupont"></div>
+        <div class="fg"><label>Téléphone</label><input type="tel" id="ob-tel" placeholder="06 12 34 56 78"></div>
+      </div>
+      <div class="fg"><label>Email professionnel</label><input type="email" id="ob-email"></div>
+      <div class="fg"><label>Adresse</label><input type="text" id="ob-adr" placeholder="12 rue des Lilas, 75010 Paris"></div>
+      <div class="wiz-foot"><button class="btn btn-p" onclick="obNext(2)">Continuer →</button></div>
+    </div>
+    <!-- STEP 2 -->
+    <div id="ob2" style="display:none">
+      <div class="wiz-title">Première copropriété</div>
+      <div class="wiz-sub">Vous pourrez en ajouter d'autres depuis les Paramètres.</div>
+      <div class="fg"><label>Nom de la copropriété</label><input type="text" id="ob-cn" placeholder="Résidence Les Platanes"></div>
+      <div class="fg"><label>Adresse</label><input type="text" id="ob-ca" placeholder="15 avenue de la République, 75011 Paris"></div>
+      <div class="fr">
+        <div class="fg"><label>Nombre de lots</label><input type="number" id="ob-cl" placeholder="12" min="1"></div>
+        <div class="fg"><label>Tantièmes totaux</label><input type="number" id="ob-ct" placeholder="1000" min="1"></div>
+      </div>
+      <div class="fg"><label>SIRET (optionnel)</label><input type="text" id="ob-cs" placeholder="123 456 789 00012"></div>
+      <div class="wiz-foot">
+        <button class="btn btn-g" onclick="obBack(1)">← Retour</button>
+        <button class="btn btn-p" onclick="obNext(3)">Continuer →</button>
+      </div>
+    </div>
+    <!-- STEP 3 -->
+    <div id="ob3" style="display:none">
+      <div class="wiz-title">C'est parti ! 🎉</div>
+      <div class="wiz-sub">Votre espace est prêt. Ajoutez vos lots depuis la section Copropriétaires &amp; Lots.</div>
+      <div class="card" style="background:var(--accent-l);border:none;font-size:13px;color:var(--accent)">
+        Conseil : commencez par saisir vos <strong>lots et copropriétaires</strong>, puis générez votre premier <strong>appel de charges</strong>.
+      </div>
+      <div class="wiz-foot">
+        <button class="btn btn-g" onclick="obBack(2)">← Retour</button>
+        <button class="btn btn-p" onclick="obFinish()">Accéder au dashboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ APP ══════════════════════ -->
+<div id="app">
+  <button class="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="row">
+        <img src="logo.svg" alt="SyndicNova" width="32" height="32" style="border-radius:7px;flex-shrink:0">
+        <div><div class="name">SyndicNova</div><div class="tag" id="plan-tag">Chargement...</div></div>
+      </div>
+    </div>
+    <div class="sb-copro">
+      <select id="copro-sel" onchange="selectCopro(this.value)"><option>Chargement...</option></select>
+    </div>
+    <nav class="sb-nav">
+      <a class="ni on" href="#dashboard" onclick="nav('dashboard')"><span class="ic">📊</span>Dashboard</a>
+      <a class="ni" href="#copropriete" onclick="nav('copropriete')"><span class="ic">🏢</span>Ma copropriété</a>
+      <a class="ni" href="#lots" onclick="nav('lots')"><span class="ic">👥</span>Copropriétaires &amp; Lots</a>
+      <a class="ni" href="#ag" onclick="nav('ag')"><span class="ic">🗳️</span>Assemblées Générales</a>
+      <a class="ni" href="#compta" onclick="nav('compta')"><span class="ic">💰</span>Comptabilité &amp; Charges</a>
+      <a class="ni" href="#documents" onclick="nav('documents')"><span class="ic">📁</span>Documents</a>
+      <a class="ni" href="#parametres" onclick="nav('parametres')"><span class="ic">⚙️</span>Paramètres</a>
+    </nav>
+    <div class="sb-foot">
+      <div class="sync-row"><div class="sync-dot" id="sync-dot"></div><span id="sync-lbl">Connecté</span></div>
+      <button class="btn-logout" onclick="doLogout()">Déconnexion</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main" id="main">
+
+    <!-- ═══ DASHBOARD ═══ -->
+    <div class="page on" id="page-dashboard">
+      <div class="ph">
+        <div class="ph-l"><h2>Dashboard</h2><p id="dash-sub">Vue d'ensemble</p></div>
+        <div class="ph-r">
+          <button class="btn btn-s" onclick="nav('ag');setTimeout(startAGWizard,100)">🗳️ Nouvelle AG</button>
+          <button class="btn btn-p" onclick="nav('compta');setTimeout(()=>switchTab('compta','appels'),100)">💶 Appel de charges</button>
+        </div>
+      </div>
+      <div class="alerts" id="dash-alerts"></div>
+      <div class="g4" style="margin-bottom:20px">
+        <div class="kpi"><div class="kpi-ic">🏢</div><div class="kpi-val" id="kpi-copros">—</div><div class="kpi-lbl">Copropriétés</div></div>
+        <div class="kpi gr"><div class="kpi-ic">💶</div><div class="kpi-val" id="kpi-enc">—</div><div class="kpi-lbl">Encaissé ce trimestre</div></div>
+        <div class="kpi re"><div class="kpi-ic">⚠️</div><div class="kpi-val" id="kpi-imp">—</div><div class="kpi-lbl">Impayés</div><div class="kpi-sub" id="kpi-imp-m"></div></div>
+        <div class="kpi cu"><div class="kpi-ic">📅</div><div class="kpi-val" id="kpi-ag">—</div><div class="kpi-lbl">Prochaine AG</div></div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="st">📈 Encaissements — 12 derniers mois</div>
+          <div class="cw"><canvas id="chart-enc"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="st">⚡ Activité récente</div>
+          <div id="recent-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ COPROPRIETE ═══ -->
+    <div class="page" id="page-copropriete">
+      <div class="ph">
+        <div class="ph-l"><h2>Ma copropriété</h2><p>Informations, carnet d'entretien, contrats</p></div>
+        <div class="ph-r"><button class="btn btn-p" onclick="saveCoproFiche()">💾 Enregistrer</button></div>
+      </div>
+      <div class="tabs">
+        <button class="tb on" onclick="switchTab('copro','fiche')">Fiche</button>
+        <button class="tb" onclick="switchTab('copro','entretien')">Carnet d'entretien</button>
+        <button class="tb" onclick="switchTab('copro','contrats')">Contrats fournisseurs</button>
+      </div>
+      <!-- FICHE -->
+      <div class="tp on" id="copro-tab-fiche">
+        <div class="g2">
+          <div class="card">
+            <div class="fs"><div class="fs-title">Informations générales</div>
+              <div class="fg"><label>Nom</label><input type="text" id="c-nom"></div>
+              <div class="fg"><label>Adresse complète</label><input type="text" id="c-adr"></div>
+              <div class="fr"><div class="fg"><label>Date création syndicat</label><input type="date" id="c-date"></div><div class="fg"><label>SIRET</label><input type="text" id="c-siret"></div></div>
+              <div class="fr"><div class="fg"><label>Nb lots total</label><input type="number" id="c-lots" min="1"></div><div class="fg"><label>Lots habitables</label><input type="number" id="c-lh" min="0"></div></div>
+              <div class="fg"><label>Tantièmes totaux</label><input type="number" id="c-tant" placeholder="1000"></div>
+            </div>
+            <div class="fs"><div class="fs-title">Compte bancaire</div>
+              <div class="fg"><label>Banque</label><input type="text" id="c-banque"></div>
+              <div class="fg"><label>IBAN</label><input type="text" id="c-iban" placeholder="FR76 0000..."></div>
+              <div class="fg"><label>BIC</label><input type="text" id="c-bic"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="fs"><div class="fs-title">Assurance</div>
+              <div class="fg"><label>Compagnie</label><input type="text" id="c-ass-cp"></div>
+              <div class="fg"><label>N° contrat</label><input type="text" id="c-ass-ct"></div>
+              <div class="fr"><div class="fg"><label>Échéance</label><input type="date" id="c-ass-ech"></div><div class="fg"><label>Prime annuelle (€)</label><input type="number" id="c-ass-pr"></div></div>
+            </div>
+            <div class="fs"><div class="fs-title">Mandat syndic</div>
+              <div class="fg"><label>Nom du syndic</label><input type="text" id="c-synd-nom"></div>
+              <div class="fg"><label>Email</label><input type="email" id="c-synd-email"></div>
+              <div class="fg"><label>Téléphone</label><input type="tel" id="c-synd-tel"></div>
+              <div class="fr"><div class="fg"><label>Mandat du</label><input type="date" id="c-mand-deb"></div><div class="fg"><label>Au</label><input type="date" id="c-mand-fin"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- ENTRETIEN -->
+      <div class="tp" id="copro-tab-entretien">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="fbar" style="margin:0">
+            <select id="ent-fy" onchange="loadEntretien()"><option value="">Toutes les années</option></select>
+            <select id="ent-ft" onchange="loadEntretien()"><option value="">Tous les types</option><option value="entretien">Entretien</option><option value="reparation">Réparation</option><option value="renovation">Rénovation</option></select>
+          </div>
+          <button class="btn btn-p btn-sm" onclick="openModal('mo-ent');resetForm('mo-ent')">+ Ajouter</button>
+        </div>
+        <div class="timeline" id="timeline-ent"></div>
+      </div>
+      <!-- CONTRATS -->
+      <div class="tp" id="copro-tab-contrats">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn btn-p btn-sm" onclick="openModal('mo-ct');resetForm('mo-ct')">+ Ajouter un contrat</button>
+        </div>
+        <div class="tw"><table><thead><tr><th>Fournisseur</th><th>Type</th><th>Montant/an</th><th>Début</th><th>Fin</th><th>Statut</th><th></th></tr></thead><tbody id="contrats-tb"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ═══ LOTS ═══ -->
+    <div class="page" id="page-lots">
+      <div class="ph">
+        <div class="ph-l"><h2>Copropriétaires &amp; Lots</h2><p id="lots-sub">—</p></div>
+        <div class="ph-r"><button class="btn btn-p" onclick="openModal('mo-lot');resetLotForm()">+ Ajouter un lot</button></div>
+      </div>
+      <div class="fbar">
+        <input type="search" id="lots-q" placeholder="Rechercher..." oninput="filterLots()">
+        <select id="lots-ft" onchange="filterLots()"><option value="">Tous les types</option><option value="appartement">Appartement</option><option value="parking">Parking</option><option value="cave">Cave</option><option value="local">Local commercial</option></select>
+        <select id="lots-fs" onchange="filterLots()"><option value="">Tous les statuts</option><option value="paye">✅ Payé</option><option value="emis">⏳ En attente</option><option value="retard">❌ En retard</option></select>
+      </div>
+      <div class="lg-grid" id="lots-grid"></div>
+    </div>
+
+    <!-- ═══ AG ═══ -->
+    <div class="page" id="page-ag">
+      <div class="ph">
+        <div class="ph-l"><h2>Assemblées Générales</h2><p>Planification, convocations et PV</p></div>
+        <div class="ph-r"><button class="btn btn-p" id="btn-new-ag" onclick="startAGWizard()">+ Créer une AG</button></div>
+      </div>
+      <div id="ag-wizard" style="display:none"></div>
+      <div id="ag-list">
+        <div class="tw"><table><thead><tr><th>Date</th><th>Type</th><th>Statut</th><th>Résolutions</th><th>Documents</th><th>Actions</th></tr></thead><tbody id="ag-tb"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ═══ COMPTA ═══ -->
+    <div class="page" id="page-compta">
+      <div class="ph">
+        <div class="ph-l"><h2>Comptabilité &amp; Charges</h2><p>Budget, appels de charges, suivi</p></div>
+        <div class="ph-r"><button class="btn btn-s btn-sm" onclick="genRapportAnnuel()">📊 Rapport annuel</button></div>
+      </div>
+      <div class="tabs">
+        <button class="tb on" onclick="switchTab('compta','budget')">Budget prévisionnel</button>
+        <button class="tb" onclick="switchTab('compta','appels')">Appels de charges</button>
+        <button class="tb" onclick="switchTab('compta','suivi')">Suivi paiements</button>
+      </div>
+      <!-- BUDGET -->
+      <div class="tp on" id="compta-tab-budget">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:9px">
+            <div class="st" style="margin:0">Budget <select id="budget-yr" onchange="loadBudget()" style="margin-left:8px;padding:3px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:var(--fb);font-size:12px"></select></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-g btn-sm" onclick="saveBudget()">💾 Sauvegarder</button>
+              <button class="btn btn-p btn-sm" onclick="validerBudget()">✅ Valider &amp; générer appels</button>
+            </div>
+          </div>
+          <div class="tw">
+            <table>
+              <thead><tr><th>Poste de charge</th><th>Budget N (€)</th><th>Réalisé N-1 (€)</th><th>Écart (€)</th></tr></thead>
+              <tbody id="budget-tb"></tbody>
+              <tfoot><tr style="background:var(--accent-l)"><td style="font-weight:700;padding:10px 14px">TOTAL</td><td style="font-weight:700;padding:10px 14px" id="bud-tot-n">0</td><td style="font-weight:700;padding:10px 14px" id="bud-tot-n1">0</td><td style="font-weight:700;padding:10px 14px" id="bud-tot-ec">0</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- APPELS -->
+      <div class="tp" id="compta-tab-appels">
+        <div class="card" style="margin-bottom:16px">
+          <div class="st">Générer des appels de charges</div>
+          <div class="fr">
+            <div class="fg"><label>Trimestre</label><select id="ap-trim"><option value="T1">T1 — Janvier à Mars</option><option value="T2">T2 — Avril à Juin</option><option value="T3">T3 — Juillet à Septembre</option><option value="T4">T4 — Octobre à Décembre</option></select></div>
+            <div class="fg"><label>Année</label><select id="ap-yr"></select></div>
+          </div>
+          <div id="ap-preview" style="margin-bottom:14px"></div>
+          <div style="display:flex;gap:9px;flex-wrap:wrap">
+            <button class="btn btn-s btn-sm" onclick="previewAppels()">👁️ Aperçu</button>
+            <button class="btn btn-p btn-sm" onclick="genEtEnvoyerAppels()">📧 Générer &amp; envoyer tous</button>
+          </div>
+        </div>
+      </div>
+      <!-- SUIVI -->
+      <div class="tp" id="compta-tab-suivi">
+        <div class="fbar" style="margin-bottom:14px">
+          <select id="suivi-fs" onchange="loadSuivi()"><option value="">Tous les statuts</option><option value="emis">Émis</option><option value="paye">Payé</option><option value="retard">En retard</option></select>
+          <select id="suivi-fp" onchange="loadSuivi()"><option value="">Toutes les périodes</option></select>
+        </div>
+        <div class="tw"><table><thead><tr><th>Lot</th><th>Copropriétaire</th><th>Période</th><th>Montant</th><th>Dû le</th><th>Reçu le</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="suivi-tb"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ═══ DOCUMENTS ═══ -->
+    <div class="page" id="page-documents">
+      <div class="ph">
+        <div class="ph-l"><h2>Documents</h2><p>Archivage et documents légaux</p></div>
+        <div class="ph-r"><button class="btn btn-p btn-sm" onclick="openModal('mo-doc')">⬆️ Uploader</button></div>
+      </div>
+      <div class="fbar">
+        <input type="search" id="docs-q" placeholder="Rechercher..." oninput="filterDocs()">
+        <select id="docs-fc" onchange="filterDocs()"><option value="">Toutes catégories</option><option value="ag">📋 AG</option><option value="comptabilite">💰 Comptabilité</option><option value="contrats">📄 Contrats</option><option value="entretien">🏗️ Entretien</option><option value="juridique">⚖️ Juridique</option><option value="divers">📁 Divers</option></select>
+      </div>
+      <div class="g3" id="docs-grid" style="margin-bottom:28px"></div>
+      <div class="st">📄 Documents légaux à générer</div>
+      <div class="g2">
+        <div class="card">
+          <div style="font-weight:600;margin-bottom:7px">Pré-état daté</div>
+          <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px">Pour les ventes de lots — situation comptable et administrative.</div>
+          <div class="fr"><div class="fg"><label>Lot</label><select id="pe-lot"></select></div><div class="fg"><label>Date vente prév.</label><input type="date" id="pe-date"></div></div>
+          <div class="fg"><label>Notaire</label><input type="text" id="pe-notaire" placeholder="Maître Martin"></div>
+          <button class="btn btn-s btn-sm" onclick="genPreEtat()">📄 Générer</button>
+        </div>
+        <div class="card">
+          <div style="font-weight:600;margin-bottom:7px">Attestation de charges</div>
+          <div style="font-size:12px;color:var(--text-sec);margin-bottom:12px">Pour dossiers de location ou refinancement.</div>
+          <div class="fr"><div class="fg"><label>Lot</label><select id="at-lot"></select></div><div class="fg"><label>Année</label><select id="at-yr"></select></div></div>
+          <button class="btn btn-s btn-sm" onclick="genAttestation()">📄 Générer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PARAMETRES ═══ -->
+    <div class="page" id="page-parametres">
+      <div class="ph"><div class="ph-l"><h2>Paramètres</h2><p>Profil, copropriétés, notifications</p></div></div>
+      <div class="tabs">
+        <button class="tb on" onclick="switchTab('param','profil')">Profil</button>
+        <button class="tb" onclick="switchTab('param','copros')">Copropriétés</button>
+        <button class="tb" onclick="switchTab('param','notif')">Notifications</button>
+        <button class="tb" onclick="switchTab('param','plan')">Plan &amp; abonnement</button>
+      </div>
+      <div class="tp on" id="param-tab-profil">
+        <div class="card" style="max-width:520px">
+          <div class="fr"><div class="fg"><label>Nom complet</label><input type="text" id="p-nom"></div><div class="fg"><label>Téléphone</label><input type="tel" id="p-tel"></div></div>
+          <div class="fg"><label>Email</label><input type="email" id="p-email"></div>
+          <div class="fg"><label>Adresse professionnelle</label><input type="text" id="p-adr"></div>
+          <div class="fg"><label>Nom du cabinet</label><input type="text" id="p-cabinet"></div>
+          <button class="btn btn-p" onclick="saveProfil()">💾 Enregistrer</button>
+        </div>
+      </div>
+      <div class="tp" id="param-tab-copros">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button class="btn btn-p btn-sm" onclick="openModal('mo-nc');document.getElementById('nc-id').value=''">+ Nouvelle copropriété</button>
+        </div>
+        <div class="g2" id="copros-list"></div>
+      </div>
+      <div class="tp" id="param-tab-notif">
+        <div class="card" style="max-width:440px">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" id="n-imp" checked> Alertes impayés (+60 jours)</label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" id="n-ct" checked> Contrats expirant dans 30 jours</label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" id="n-ag" checked> AG à convoquer (&gt;11 mois)</label>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px"><input type="checkbox" id="n-ap" checked> Appels de charges trimestriels</label>
+          </div>
+          <button class="btn btn-p" style="margin-top:18px" onclick="saveNotif()">💾 Enregistrer</button>
+        </div>
+      </div>
+      <div class="tp" id="param-tab-plan">
+        <div class="card" style="max-width:560px">
+          <div class="st">Votre plan actuel</div>
+          <div id="plan-info" style="margin-bottom:18px"></div>
+          <button class="btn btn-cu btn-sm" onclick="openModal('mo-upgrade')">⬆️ Changer de plan</button>
+          <div style="margin-top:22px;padding-top:22px;border-top:1px solid var(--border)">
+            <div class="st" style="color:var(--red)">Zone dangereuse</div>
+            <div style="display:flex;gap:9px;flex-wrap:wrap">
+              <button class="btn btn-s btn-sm" onclick="exportData()">📦 Exporter mes données</button>
+              <button class="btn btn-d btn-sm" onclick="deleteAccount()">🗑️ Supprimer le compte</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════════════ MODALS ══════════════════════ -->
+
+<!-- LOT -->
+<div class="mo" id="mo-lot">
+  <div class="modal lg">
+    <div class="mh"><h3 id="lot-m-title">Ajouter un lot</h3><button class="mc-btn" onclick="closeModal('mo-lot')">×</button></div>
+    <div class="mb">
+      <div class="fs"><div class="fs-title">Informations du lot</div>
+        <div class="fr3"><div class="fg"><label>N° lot</label><input type="text" id="l-num" placeholder="A101"></div><div class="fg"><label>Bâtiment</label><input type="text" id="l-bat" placeholder="A"></div><div class="fg"><label>Étage</label><input type="text" id="l-etg" placeholder="1er"></div></div>
+        <div class="fr"><div class="fg"><label>Type</label><select id="l-type"><option value="appartement">Appartement</option><option value="parking">Parking</option><option value="cave">Cave</option><option value="local">Local commercial</option></select></div><div class="fg"><label>Surface (m²)</label><input type="number" id="l-surf" placeholder="65"></div></div>
+        <div class="fr"><div class="fg"><label>Tantièmes généraux</label><input type="number" id="l-tant" oninput="updateTantRem()"></div><div class="fg"><label>Tantièmes charges spéciales</label><input type="number" id="l-tsp" placeholder="0"></div></div>
+        <div id="tant-rem" style="font-size:11px;color:var(--text-sec);margin-top:4px"></div>
+      </div>
+      <div class="fs"><div class="fs-title">Propriétaire</div>
+        <div class="fr"><div class="fg"><label>Nom complet</label><input type="text" id="l-pnom"></div><div class="fg"><label>Email</label><input type="email" id="l-pemail"></div></div>
+        <div class="fr"><div class="fg"><label>Téléphone</label><input type="tel" id="l-ptel"></div><div class="fg"><label>Date d'acquisition</label><input type="date" id="l-pacq"></div></div>
+        <div class="fg"><label>Adresse de correspondance</label><input type="text" id="l-padr" placeholder="Si différente du lot"></div>
+        <div class="fg"><label>Mode de paiement</label><select id="l-ppay"><option value="virement">Virement bancaire</option><option value="cheque">Chèque</option><option value="prelevement">Prélèvement</option></select></div>
+      </div>
+      <div class="fs"><div class="fs-title">Occupation</div>
+        <div style="display:flex;gap:16px;margin-bottom:12px">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" name="l-occ" value="proprio" checked onchange="toggleLoc(false)"> Propriétaire occupant</label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px"><input type="radio" name="l-occ" value="loue" onchange="toggleLoc(true)"> Loué</label>
+        </div>
+        <div id="loc-fields" style="display:none">
+          <div class="fr3"><div class="fg"><label>Nom locataire</label><input type="text" id="l-lnom"></div><div class="fg"><label>Email</label><input type="email" id="l-lemail"></div><div class="fg"><label>Téléphone</label><input type="tel" id="l-ltel"></div></div>
+          <div class="fg"><label>Date d'entrée</label><input type="date" id="l-ldate"></div>
+        </div>
+      </div>
+      <input type="hidden" id="l-id">
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-lot')">Annuler</button><button class="btn btn-p" onclick="saveLot()">💾 Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- LOT DETAIL -->
+<div class="mo" id="mo-lot-det">
+  <div class="modal lg">
+    <div class="mh"><h3 id="lot-det-title">Lot —</h3><button class="mc-btn" onclick="closeModal('mo-lot-det')">×</button></div>
+    <div class="mb" id="lot-det-body"></div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-lot-det')">Fermer</button><button class="btn btn-s" id="lot-det-edit">✏️ Modifier</button></div>
+  </div>
+</div>
+
+<!-- ENTRETIEN -->
+<div class="mo" id="mo-ent">
+  <div class="modal">
+    <div class="mh"><h3>Intervention</h3><button class="mc-btn" onclick="closeModal('mo-ent')">×</button></div>
+    <div class="mb">
+      <div class="fr"><div class="fg"><label>Date</label><input type="date" id="e-date"></div><div class="fg"><label>Type</label><select id="e-type"><option value="entretien">Entretien courant</option><option value="reparation">Réparation</option><option value="renovation">Rénovation</option></select></div></div>
+      <div class="fg"><label>Description</label><input type="text" id="e-desc" placeholder="Nettoyage cage d'escalier..."></div>
+      <div class="fr"><div class="fg"><label>Prestataire</label><input type="text" id="e-prest"></div><div class="fg"><label>Montant (€)</label><input type="number" id="e-mont"></div></div>
+      <div class="fg"><label>Statut</label><select id="e-stat"><option value="termine">Terminé</option><option value="planifie">Planifié</option><option value="en_cours">En cours</option></select></div>
+      <input type="hidden" id="e-id">
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-ent')">Annuler</button><button class="btn btn-p" onclick="saveEntretien()">💾 Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- CONTRAT -->
+<div class="mo" id="mo-ct">
+  <div class="modal">
+    <div class="mh"><h3>Contrat fournisseur</h3><button class="mc-btn" onclick="closeModal('mo-ct')">×</button></div>
+    <div class="mb">
+      <div class="fg"><label>Fournisseur</label><input type="text" id="ct-four"></div>
+      <div class="fg"><label>Type</label><select id="ct-type"><option value="ascenseur">Ascenseur</option><option value="assurance">Assurance</option><option value="nettoyage">Nettoyage</option><option value="espaces_verts">Espaces verts</option><option value="digicode">Digicode / Interphonie</option><option value="autre">Autre</option></select></div>
+      <div class="fg"><label>Montant annuel (€)</label><input type="number" id="ct-mont"></div>
+      <div class="fr"><div class="fg"><label>Date début</label><input type="date" id="ct-deb"></div><div class="fg"><label>Date fin</label><input type="date" id="ct-fin"></div></div>
+      <div class="fg"><label>Contact</label><input type="text" id="ct-contact" placeholder="Nom, tél, email..."></div>
+      <input type="hidden" id="ct-id">
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-ct')">Annuler</button><button class="btn btn-p" onclick="saveContrat()">💾 Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- DOCUMENT UPLOAD -->
+<div class="mo" id="mo-doc">
+  <div class="modal">
+    <div class="mh"><h3>Uploader un document</h3><button class="mc-btn" onclick="closeModal('mo-doc')">×</button></div>
+    <div class="mb">
+      <div class="fg"><label>Fichier</label><input type="file" id="doc-file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"></div>
+      <div class="fg"><label>Nom du document</label><input type="text" id="doc-nom"></div>
+      <div class="fg"><label>Catégorie</label><select id="doc-cat"><option value="ag">📋 AG</option><option value="comptabilite">💰 Comptabilité</option><option value="contrats">📄 Contrats</option><option value="entretien">🏗️ Entretien</option><option value="juridique">⚖️ Juridique</option><option value="divers">📁 Divers</option></select></div>
+      <div class="fg"><label>Description</label><input type="text" id="doc-desc"></div>
+      <div class="fg"><label>Lot associé (optionnel)</label><select id="doc-lot"><option value="">Aucun</option></select></div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-doc')">Annuler</button><button class="btn btn-p" onclick="uploadDoc()">⬆️ Uploader</button></div>
+  </div>
+</div>
+
+<!-- RELANCE -->
+<div class="mo" id="mo-relance">
+  <div class="modal">
+    <div class="mh"><h3>Envoyer une relance</h3><button class="mc-btn" onclick="closeModal('mo-relance')">×</button></div>
+    <div class="mb">
+      <div class="fg"><label>Niveau de relance</label>
+        <select id="rel-niv">
+          <option value="1">1 — Rappel amiable (ton cordial)</option>
+          <option value="2">2 — Mise en demeure (ton formel)</option>
+          <option value="3">3 — Dernier avis avant procédure</option>
+        </select>
+      </div>
+      <div id="rel-info" style="padding:10px;background:var(--bg);border-radius:var(--r);font-size:12px;margin-top:10px"></div>
+      <input type="hidden" id="rel-ap-id">
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-relance')">Annuler</button><button class="btn btn-p" onclick="envoyerRelance()">📧 Envoyer</button></div>
+  </div>
+</div>
+
+<!-- UPGRADE -->
+<div class="mo" id="mo-upgrade">
+  <div class="modal">
+    <div class="mh"><h3>Changer de plan</h3><button class="mc-btn" onclick="closeModal('mo-upgrade')">×</button></div>
+    <div class="mb">
+      <div class="g3">
+        <div class="plan-card" id="pc-bene" onclick="selectPlan('benevole')"><div style="font-family:var(--ft);font-weight:700">Bénévole</div><div class="plan-price">9,90€<span>/mois</span></div><ul style="font-size:12px;text-align:left;padding-left:14px;margin-top:8px"><li>1 copropriété</li><li>10 lots max</li></ul></div>
+        <div class="plan-card" id="pc-ind" onclick="selectPlan('independant')"><div style="font-family:var(--ft);font-weight:700">Indépendant</div><div class="plan-price">29,90€<span>/mois</span></div><ul style="font-size:12px;text-align:left;padding-left:14px;margin-top:8px"><li>10 copropriétés</li><li>50 lots max</li></ul></div>
+        <div class="plan-card" id="pc-cab" onclick="selectPlan('cabinet')"><div style="font-family:var(--ft);font-weight:700">Cabinet</div><div class="plan-price">79,90€<span>/mois</span></div><ul style="font-size:12px;text-align:left;padding-left:14px;margin-top:8px"><li>Illimité</li><li>200+ lots</li></ul></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-upgrade')">Annuler</button><button class="btn btn-p" onclick="confirmPlan()">Confirmer</button></div>
+  </div>
+</div>
+
+<!-- NOUVELLE COPRO -->
+<div class="mo" id="mo-nc">
+  <div class="modal">
+    <div class="mh"><h3 id="nc-title">Nouvelle copropriété</h3><button class="mc-btn" onclick="closeModal('mo-nc')">×</button></div>
+    <div class="mb">
+      <div class="fg"><label>Nom</label><input type="text" id="nc-nom"></div>
+      <div class="fg"><label>Adresse</label><input type="text" id="nc-adr"></div>
+      <div class="fr"><div class="fg"><label>Nb lots</label><input type="number" id="nc-lots" min="1"></div><div class="fg"><label>Tantièmes totaux</label><input type="number" id="nc-tant" placeholder="1000"></div></div>
+      <div class="fg"><label>SIRET (optionnel)</label><input type="text" id="nc-siret"></div>
+      <input type="hidden" id="nc-id">
+    </div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-nc')">Annuler</button><button class="btn btn-p" onclick="saveCopro()">💾 Enregistrer</button></div>
+  </div>
+</div>
+
+<!-- PV AG -->
+<div class="mo" id="mo-pv">
+  <div class="modal lg">
+    <div class="mh"><h3>Saisie du PV d'Assemblée</h3><button class="mc-btn" onclick="closeModal('mo-pv')">×</button></div>
+    <div class="mb" id="pv-body"></div>
+    <div class="mf"><button class="btn btn-g" onclick="closeModal('mo-pv')">Annuler</button><button class="btn btn-p" onclick="savePV()">💾 Enregistrer le PV</button></div>
+  </div>
+</div>
+
+<!-- SEND PROGRESS -->
+<div class="mo" id="mo-send">
+  <div class="modal">
+    <div class="mh"><h3 id="send-title">Envoi en cours...</h3></div>
+    <div class="mb">
+      <div class="prog-bar" style="margin-bottom:14px"><div class="prog-fill" id="send-prog" style="width:0%"></div></div>
+      <div id="send-list" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r)"></div>
+      <div id="send-summary" style="margin-top:10px;font-size:12px;color:var(--text-sec)"></div>
+    </div>
+    <div class="mf"><button class="btn btn-p" id="btn-close-send" style="display:none" onclick="closeModal('mo-send')">Fermer</button></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG — Remplace par tes propres clés Firebase
+// ══════════════════════════════════════════════════════════
+const FB_CONFIG = {
+  apiKey: "AIzaSyCNfhw-S-vXz3fvzWrr6XckIKn1AlT_YCo",
+  authDomain: "syndicnova.firebaseapp.com",
+  projectId: "syndicnova",
+  storageBucket: "syndicnova.firebasestorage.app",
+  messagingSenderId: "501936876218",
+  appId: "1:501936876218:web:ccc8efb2ddf73a61df7083"
+};
+const EMAILJS_PUBLIC = "wwShHZ6DPHK4D2BNf";
+const EMAILJS_SERVICE = "service_dtwo6wf";
+const EMAILJS_TEMPLATES = {
+  convocation: "template_b1ljvnw",
+  appel:       "template_5r1lvi5",
+  relance1:    "TEMPLATE_RELANCE_1",
+  relance2:    "TEMPLATE_RELANCE_2",
+  relance3:    "TEMPLATE_RELANCE_3",
+  pv:          "TEMPLATE_PV_AG"
+};
+
+const PLANS = {
+  benevole:    { max_copros: 1,   max_lots: 10,  label: "Bénévole",    price: "9,90€/mois" },
+  independant: { max_copros: 10,  max_lots: 50,  label: "Indépendant", price: "29,90€/mois" },
+  cabinet:     { max_copros: 999, max_lots: 999, label: "Cabinet",     price: "79,90€/mois" }
+};
+const BUDGET_POSTES = ["Entretien courant","Nettoyage","Espaces verts","Ascenseur","Assurance","Eau","Électricité PC","Honoraires syndic","Travaux","Provisions","Divers"];
+
+// ── Firebase init ──
+let auth, db, stor;
+try { firebase.initializeApp(FB_CONFIG); } catch(e) { console.error('Firebase initializeApp:', e); }
+try { auth = firebase.auth();      window._auth = auth; } catch(e) { console.error('Firebase auth:', e); }
+try { db   = firebase.firestore(); window._db   = db;   } catch(e) { console.error('Firebase firestore:', e); }
+try { stor = firebase.storage();   window._stor = stor;  } catch(e) { console.warn('Firebase storage non disponible:', e); }
+try { emailjs.init(EMAILJS_PUBLIC); } catch(e) { console.warn('EmailJS init:', e); }
+
+// ── State global ──
+let CU = null; // current user
+let CP = null; // current copropriete id
+let LOTS = []; // lots cache
+let COPROS = []; // copros cache
+let SELECTED_PLAN = null;
+
+// ══════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════
+function fmtEur(n) { return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0); }
+function fmtDate(ts) { if(!ts) return '—'; const d = ts.toDate ? ts.toDate() : new Date(ts); return d.toLocaleDateString('fr-FR'); }
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function resetForm(id) { const m = document.getElementById(id); m.querySelectorAll('input:not([type=radio]):not([type=checkbox]),select,textarea').forEach(el=>{ if(el.type==='hidden') el.value=''; else if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; }); }
+function setSyncStatus(online) {
+  const dot = qs('sync-dot'), lbl = qs('sync-lbl');
+  if(online){ dot.classList.remove('off'); lbl.textContent='Connecté'; }
+  else { dot.classList.add('off'); lbl.textContent='Hors ligne'; }
+}
+window.addEventListener('online',  ()=>setSyncStatus(true));
+window.addEventListener('offline', ()=>setSyncStatus(false));
+
+// ══════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════
+function switchTab(group, name) {
+  const prefix = { copro:'copro-tab-', compta:'compta-tab-', param:'param-tab-' }[group];
+  document.querySelectorAll(`[id^="${prefix}"]`).forEach(p => p.classList.remove('on'));
+  qs(`${prefix}${name}`).classList.add('on');
+  const parent = qs(`page-${group === 'param' ? 'parametres' : group}`);
+  if(parent) parent.querySelectorAll('.tb').forEach(b => {
+    b.classList.toggle('on', b.getAttribute('onclick')?.includes(`'${name}'`));
+  });
+  if(group==='copro' && name==='entretien') loadEntretien();
+  if(group==='copro' && name==='contrats') loadContrats();
+  if(group==='compta' && name==='suivi') loadSuivi();
+  if(group==='param' && name==='copros') loadCoprsList();
+  if(group==='param' && name==='plan') loadPlanInfo();
+}
+
+// ══════════════════════════════════════════════════════════
+// ROUTING
+// ══════════════════════════════════════════════════════════
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('on'));
+  const pg = qs(`page-${page}`);
+  if(pg) pg.classList.add('on');
+  const link = document.querySelector(`.ni[href="#${page}"]`);
+  if(link) link.classList.add('on');
+  location.hash = page;
+  closeSidebarMobile();
+  if(page==='dashboard') loadDashboard();
+  if(page==='copropriete') loadCoproFiche();
+  if(page==='lots') loadLots();
+  if(page==='ag') loadAGList();
+  if(page==='compta') loadBudget();
+  if(page==='documents') loadDocuments();
+  if(page==='parametres') loadProfil();
+}
+function handleHash() {
+  const h = location.hash.replace('#','') || 'dashboard';
+  nav(h);
+}
+window.addEventListener('hashchange', handleHash);
+
+// ══════════════════════════════════════════════════════════
+// SIDEBAR MOBILE
+// ══════════════════════════════════════════════════════════
+function toggleSidebar() { qs('sidebar').classList.toggle('open'); }
+function closeSidebarMobile() { if(window.innerWidth<=680) qs('sidebar').classList.remove('open'); }
+
+// ══════════════════════════════════════════════════════════
+// AUTH (fonctions principales dans le bloc head)
+// ══════════════════════════════════════════════════════════
+
+// ── Mode démo / bypass auth ──
+const DEMO_MODE = new URLSearchParams(location.search).get('demo') !== null;
+if(DEMO_MODE) {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('ob-screen').style.display   = 'none';
+  document.getElementById('app').style.display         = 'flex';
+  COPROS = [{ id:'demo', nom:'Résidence Les Platanes', adresse:'15 av. de la République, 75011 Paris', nb_lots:12, tantiemes_totaux:1000 }];
+  CP = 'demo';
+  document.getElementById('plan-tag').textContent = 'Bénévole';
+  const sel = document.getElementById('copro-sel');
+  sel.innerHTML = '<option value="demo">Résidence Les Platanes</option>';
+  document.getElementById('kpi-copros').textContent = '1';
+  document.getElementById('kpi-enc').textContent = '3 240 €';
+  document.getElementById('kpi-imp').textContent = '2';
+  document.getElementById('kpi-imp-m').textContent = '540 €';
+  document.getElementById('kpi-ag').textContent = '12 sep.';
+  document.getElementById('dash-sub').textContent = 'Résidence Les Platanes';
+  document.getElementById('recent-list').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-size:16px">💶</span><div style="flex:1"><div style="font-weight:600">Lot A101 — T2 2026</div><div style="color:var(--text-sec)">10/06/2026</div></div><span class="badge bg">payé</span></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="font-size:16px">📄</span><div style="flex:1"><div style="font-weight:600">Lot B203 — T2 2026</div><div style="color:var(--text-sec)">10/06/2026</div></div><span class="badge by">emis</span></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;font-size:12px"><span style="font-size:16px">📄</span><div style="flex:1"><div style="font-weight:600">Lot A102 — T2 2026</div><div style="color:var(--text-sec)">10/06/2026</div></div><span class="badge br">retard</span></div>`;
+  document.getElementById('dash-alerts').innerHTML = '<div class="alert re">🔴 2 impayés de plus de 60 jours — 540 €</div>';
+  nav('dashboard');
+}
+
+// ── Auth state ──
+if(!auth) { console.error('Firebase Auth non initialisé — vérifie la config et le domaine autorisé'); }
+(auth || { onAuthStateChanged: ()=>{} }).onAuthStateChanged(async user => {
+  if(DEMO_MODE) return;
+  if(!user) {
+    CU = null; CP = null;
+    qs('auth-screen').style.display = 'flex';
+    qs('ob-screen').style.display   = 'none';
+    qs('app').style.display         = 'none';
+    return;
+  }
+  CU = user;
+  qs('auth-screen').style.display = 'none';
+  const snap = await db.collection('users').doc(user.uid).get();
+  const data = snap.data() || {};
+  if(!data.onboarding_complete) {
+    qs('ob-screen').style.display = 'flex';
+    qs('app').style.display       = 'none';
+    if(data.email) qs('ob-email').value = data.email;
+    if(data.nom)   qs('ob-nom').value   = data.nom;
+  } else {
+    qs('ob-screen').style.display = 'none';
+    await initApp(data);
+  }
+});
+
+// ══════════════════════════════════════════════════════════
+// ONBOARDING
+// ══════════════════════════════════════════════════════════
+function obShow(n) {
+  [1,2,3].forEach(i => { qs(`ob${i}`).style.display = i===n?'':'none'; qs(`ws${i}`).className='wiz-seg'+(i<n?' done':i===n?' cur':''); });
+}
+function obBack(n) { obShow(n); }
+function obNext(n) {
+  if(n===2) {
+    if(!qs('ob-nom').value.trim()) return toast('Saisissez votre nom','w');
+  }
+  if(n===3) {
+    if(!qs('ob-cn').value.trim()||!qs('ob-ca').value.trim()) return toast('Nom et adresse obligatoires','w');
+  }
+  obShow(n);
+}
+async function obFinish() {
+  try {
+    const uid = CU.uid;
+    await db.collection('users').doc(uid).update({
+      nom: qs('ob-nom').value.trim(), tel: qs('ob-tel').value.trim(),
+      email_pro: qs('ob-email').value.trim(), adresse: qs('ob-adr').value.trim(),
+      onboarding_complete: true
+    });
+    const cref = await db.collection('coproprietes').add({
+      nom: qs('ob-cn').value.trim(), adresse: qs('ob-ca').value.trim(),
+      nb_lots: parseInt(qs('ob-cl').value)||0, tantiemes_totaux: parseInt(qs('ob-ct').value)||1000,
+      siret: qs('ob-cs').value.trim(), syndic_uid: uid,
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    CP = cref.id;
+    sessionStorage.setItem('cp', CP);
+    qs('ob-screen').style.display = 'none';
+    const snap = await db.collection('users').doc(uid).get();
+    await initApp(snap.data());
+  } catch(e) { toast(e.message,'e'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// APP INIT
+// ══════════════════════════════════════════════════════════
+async function initApp(userData) {
+  qs('app').style.display = 'flex';
+  const plan = userData.plan || 'benevole';
+  qs('plan-tag').textContent = PLANS[plan]?.label || plan;
+
+  // Load copros
+  const snap = await db.collection('coproprietes').where('syndic_uid','==',CU.uid).get();
+  COPROS = snap.docs.map(d => ({id:d.id,...d.data()}));
+  const sel = qs('copro-sel');
+  sel.innerHTML = '';
+  COPROS.forEach(c => { const o=document.createElement('option'); o.value=c.id; o.textContent=c.nom; sel.appendChild(o); });
+
+  // Restore last copro
+  const saved = sessionStorage.getItem('cp');
+  CP = (saved && COPROS.find(c=>c.id===saved)) ? saved : COPROS[0]?.id;
+  if(CP) sel.value = CP;
+
+  handleHash();
+}
+function selectCopro(id) {
+  CP = id;
+  sessionStorage.setItem('cp', id);
+  handleHash();
+}
+
+// ══════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════
+async function loadDashboard() {
+  if(!CP) return;
+  const copro = COPROS.find(c=>c.id===CP);
+  qs('dash-sub').textContent = copro?.nom || '';
+  qs('kpi-copros').textContent = COPROS.length;
+
+  // Appels charges
+  const aSnap = await db.collection('appels_charges').where('copropriete_id','==',CP).get();
+  const appels = aSnap.docs.map(d=>({id:d.id,...d.data()}));
+  const now = new Date();
+  const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
+  let encaisse = 0, impayes = 0, impayes_m = 0;
+  appels.forEach(a => {
+    if(a.statut==='paye' && a.paye_le?.toDate?.()>=qStart) encaisse += a.montant||0;
+    if(a.statut!=='paye') { impayes++; impayes_m += a.montant||0; }
+  });
+  qs('kpi-enc').textContent = fmtEur(encaisse);
+  qs('kpi-imp').textContent = impayes;
+  qs('kpi-imp-m').textContent = impayes_m > 0 ? fmtEur(impayes_m) : '';
+
+  // Prochaine AG
+  const agSnap = await db.collection('assemblees').where('copropriete_id','==',CP).where('statut','in',['planifiee','convoquee']).orderBy('date').limit(1).get();
+  if(!agSnap.empty) {
+    const ag = agSnap.docs[0].data();
+    const d = ag.date?.toDate?.() || new Date(ag.date);
+    qs('kpi-ag').textContent = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+  } else qs('kpi-ag').textContent = '—';
+
+  // Alertes
+  buildAlerts(appels, now);
+  // Chart
+  drawChart(appels, now);
+  // Recent activity
+  buildRecent(appels);
+}
+function buildAlerts(appels, now) {
+  const box = qs('dash-alerts');
+  box.innerHTML = '';
+  const limit60 = new Date(now - 60*24*3600*1000);
+  const imp60 = appels.filter(a => a.statut!=='paye' && a.date_emission?.toDate?.() < limit60);
+  if(imp60.length) box.innerHTML += `<div class="alert re">🔴 ${imp60.length} impayé(s) de plus de 60 jours — ${fmtEur(imp60.reduce((s,a)=>s+(a.montant||0),0))}</div>`;
+}
+function buildRecent(appels) {
+  const box = qs('recent-list');
+  if(!appels.length) { box.innerHTML = '<div class="empty"><div class="ei">📭</div><p>Aucune activité</p></div>'; return; }
+  const sorted = [...appels].sort((a,b) => (b.date_emission?.seconds||0) - (a.date_emission?.seconds||0)).slice(0,8);
+  box.innerHTML = sorted.map(a => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="font-size:16px">${a.statut==='paye'?'💶':'📄'}</span>
+      <div style="flex:1"><div style="font-weight:600">Lot ${a.lot_num||'—'} — ${a.periode||''}</div><div style="color:var(--text-sec)">${fmtDate(a.date_emission)}</div></div>
+      <span class="badge ${a.statut==='paye'?'bg':a.statut==='retard'?'br':'by'}">${a.statut}</span>
+    </div>`).join('');
+}
+function drawChart(appels, now) {
+  const canvas = qs('chart-enc');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const months = [], values = [];
+  for(let i=11;i>=0;i--) {
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push(d.toLocaleDateString('fr-FR',{month:'short'}));
+    const end = new Date(d.getFullYear(), d.getMonth()+1, 1);
+    const total = appels.filter(a => a.statut==='paye' && a.paye_le?.toDate?.()>=d && a.paye_le?.toDate?.()<end).reduce((s,a)=>s+(a.montant||0),0);
+    values.push(total);
+  }
+  const W = canvas.offsetWidth||600, H = 160;
+  canvas.width = W; canvas.height = H;
+  const max = Math.max(...values, 1);
+  const bw = (W - 40) / 12 * 0.6, gap = (W - 40) / 12;
+  ctx.clearRect(0,0,W,H);
+  values.forEach((v,i) => {
+    const x = 20 + i*gap + gap*0.2;
+    const bh = (v/max)*(H-30);
+    ctx.fillStyle = v>0 ? '#2C4A6E' : '#E5E5EA';
+    ctx.fillRect(x, H-20-bh, bw, bh);
+  });
+  ctx.fillStyle = '#6B6B6E'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  months.forEach((m,i) => ctx.fillText(m, 20+i*gap+gap*0.5, H-5));
+}
+
+// ══════════════════════════════════════════════════════════
+// COPROPRIETE FICHE
+// ══════════════════════════════════════════════════════════
+async function loadCoproFiche() {
+  if(!CP) return;
+  const snap = await db.collection('coproprietes').doc(CP).get();
+  const d = snap.data()||{};
+  qs('c-nom').value = d.nom||''; qs('c-adr').value = d.adresse||'';
+  qs('c-siret').value = d.siret||''; qs('c-lots').value = d.nb_lots||'';
+  qs('c-lh').value = d.lots_habitables||''; qs('c-tant').value = d.tantiemes_totaux||'';
+  if(d.created_at) qs('c-date').value = d.created_at.toDate?.().toISOString().split('T')[0]||'';
+  const b = d.banque||{}; qs('c-banque').value=b.banque||''; qs('c-iban').value=b.iban||''; qs('c-bic').value=b.bic||'';
+  const a = d.assurance||{}; qs('c-ass-cp').value=a.compagnie||''; qs('c-ass-ct').value=a.contrat||''; qs('c-ass-pr').value=a.prime||'';
+  if(a.echeance) qs('c-ass-ech').value=a.echeance;
+  const s = d.syndic||{}; qs('c-synd-nom').value=s.nom||''; qs('c-synd-email').value=s.email||''; qs('c-synd-tel').value=s.tel||'';
+  if(s.mandat_debut) qs('c-mand-deb').value=s.mandat_debut;
+  if(s.mandat_fin)   qs('c-mand-fin').value=s.mandat_fin;
+}
+async function saveCoproFiche() {
+  if(!CP) return;
+  try {
+    await db.collection('coproprietes').doc(CP).update({
+      nom: qs('c-nom').value, adresse: qs('c-adr').value,
+      siret: qs('c-siret').value, nb_lots: +qs('c-lots').value||0,
+      lots_habitables: +qs('c-lh').value||0, tantiemes_totaux: +qs('c-tant').value||1000,
+      banque: { banque:qs('c-banque').value, iban:qs('c-iban').value, bic:qs('c-bic').value },
+      assurance: { compagnie:qs('c-ass-cp').value, contrat:qs('c-ass-ct').value, echeance:qs('c-ass-ech').value, prime:+qs('c-ass-pr').value||0 },
+      syndic: { nom:qs('c-synd-nom').value, email:qs('c-synd-email').value, tel:qs('c-synd-tel').value, mandat_debut:qs('c-mand-deb').value, mandat_fin:qs('c-mand-fin').value },
+      updated_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Update local cache
+    const idx = COPROS.findIndex(c=>c.id===CP);
+    if(idx>=0) COPROS[idx].nom = qs('c-nom').value;
+    refreshCoproSel();
+    toast('Copropriété enregistrée ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+function refreshCoproSel() {
+  const sel = qs('copro-sel'); sel.innerHTML='';
+  COPROS.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.nom; sel.appendChild(o); });
+  sel.value = CP;
+}
+
+// ══════════════════════════════════════════════════════════
+// ENTRETIEN
+// ══════════════════════════════════════════════════════════
+async function loadEntretien() {
+  if(!CP) return;
+  let q = db.collection('entretien').where('copropriete_id','==',CP).orderBy('date','desc');
+  const snap = await q.get();
+  const box = qs('timeline-ent');
+  const fy = qs('ent-fy').value, ft = qs('ent-ft').value;
+  let items = snap.docs.map(d=>({id:d.id,...d.data()}));
+  if(fy) items = items.filter(i=>i.date?.startsWith?.(fy));
+  if(ft) items = items.filter(i=>i.type===ft);
+
+  // Populate year filter
+  const years = [...new Set(items.map(i=>i.date?.substring(0,4)).filter(Boolean))];
+  const fyEl = qs('ent-fy');
+  if(fyEl.options.length<=1) years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; fyEl.appendChild(o); });
+
+  if(!items.length) { box.innerHTML = '<div class="empty"><div class="ei">🔧</div><h3>Aucune intervention</h3><p>Ajoutez des interventions pour votre carnet d\'entretien.</p></div>'; return; }
+  box.innerHTML = items.map(i=>`
+    <div class="tl-item ${i.statut==='termine'?'done':i.statut==='planifie'?'plan':''}">
+      <div class="tl-date">${i.date||'—'} · ${i.type||''}</div>
+      <div class="tl-box">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div style="font-weight:600;font-size:13px">${i.description||''}</div><div style="font-size:11px;color:var(--text-sec);margin-top:2px">${i.prestataire||''} ${i.montant?'· '+fmtEur(i.montant):''}</div></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-s btn-sm" onclick='editEntretien(${JSON.stringify(i)})'>✏️</button>
+            <button class="btn btn-d btn-sm" onclick="delEntretien('${i.id}')">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function editEntretien(item) {
+  qs('e-id').value=item.id; qs('e-date').value=item.date||''; qs('e-type').value=item.type||'entretien';
+  qs('e-desc').value=item.description||''; qs('e-prest').value=item.prestataire||''; qs('e-mont').value=item.montant||'';
+  qs('e-stat').value=item.statut||'termine'; openModal('mo-ent');
+}
+async function saveEntretien() {
+  if(!CP) return;
+  const id = qs('e-id').value;
+  const data = { copropriete_id:CP, date:qs('e-date').value, type:qs('e-type').value, description:qs('e-desc').value, prestataire:qs('e-prest').value, montant:+qs('e-mont').value||0, statut:qs('e-stat').value };
+  try {
+    if(id) await db.collection('entretien').doc(id).update(data);
+    else await db.collection('entretien').add({...data, created_at:firebase.firestore.FieldValue.serverTimestamp()});
+    closeModal('mo-ent'); loadEntretien(); toast('Enregistré ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function delEntretien(id) {
+  if(!confirm('Supprimer cette intervention ?')) return;
+  await db.collection('entretien').doc(id).delete(); loadEntretien(); toast('Supprimé','s');
+}
+
+// ══════════════════════════════════════════════════════════
+// CONTRATS
+// ══════════════════════════════════════════════════════════
+async function loadContrats() {
+  if(!CP) return;
+  const snap = await db.collection('contrats').where('copropriete_id','==',CP).get();
+  const now = new Date();
+  const soon = new Date(now.getTime()+30*24*3600*1000);
+  const tb = qs('contrats-tb');
+  if(snap.empty) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-sec);padding:20px">Aucun contrat</td></tr>'; return; }
+  tb.innerHTML = snap.docs.map(d=>{
+    const c={id:d.id,...d.data()};
+    const fin = c.date_fin ? new Date(c.date_fin) : null;
+    const expired = fin && fin < now;
+    const expiringSoon = fin && !expired && fin < soon;
+    const stat = expired?'<span class="badge br">Expiré</span>':expiringSoon?'<span class="badge bo">Expire bientôt</span>':'<span class="badge bg">Actif</span>';
+    return `<tr>
+      <td>${c.fournisseur||'—'}</td><td>${c.type||'—'}</td><td>${fmtEur(c.montant_annuel)}</td>
+      <td>${c.date_debut||'—'}</td><td>${c.date_fin||'—'}</td><td>${stat}</td>
+      <td><div style="display:flex;gap:5px">
+        <button class="btn btn-s btn-sm" onclick='editContrat(${JSON.stringify(c)})'>✏️</button>
+        <button class="btn btn-d btn-sm" onclick="delContrat('${c.id}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function editContrat(c) {
+  qs('ct-id').value=c.id; qs('ct-four').value=c.fournisseur||''; qs('ct-type').value=c.type||'ascenseur';
+  qs('ct-mont').value=c.montant_annuel||''; qs('ct-deb').value=c.date_debut||''; qs('ct-fin').value=c.date_fin||'';
+  qs('ct-contact').value=c.contact||''; openModal('mo-ct');
+}
+async function saveContrat() {
+  if(!CP) return;
+  const id = qs('ct-id').value;
+  const data = { copropriete_id:CP, fournisseur:qs('ct-four').value, type:qs('ct-type').value, montant_annuel:+qs('ct-mont').value||0, date_debut:qs('ct-deb').value, date_fin:qs('ct-fin').value, contact:qs('ct-contact').value };
+  try {
+    if(id) await db.collection('contrats').doc(id).update(data);
+    else await db.collection('contrats').add(data);
+    closeModal('mo-ct'); loadContrats(); toast('Contrat enregistré ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function delContrat(id) {
+  if(!confirm('Supprimer ce contrat ?')) return;
+  await db.collection('contrats').doc(id).delete(); loadContrats(); toast('Supprimé','s');
+}
+
+// ══════════════════════════════════════════════════════════
+// LOTS
+// ══════════════════════════════════════════════════════════
+async function loadLots() {
+  if(!CP) return;
+  const snap = await db.collection('lots').where('copropriete_id','==',CP).orderBy('numero').get();
+  LOTS = snap.docs.map(d=>({id:d.id,...d.data()}));
+  qs('lots-sub').textContent = `${LOTS.length} lot(s) — ${LOTS.reduce((s,l)=>s+(l.tantiemes||0),0)} tantièmes`;
+  renderLots(LOTS);
+  // Populate lot selectors in Documents
+  ['pe-lot','at-lot','doc-lot'].forEach(sid => {
+    const sel = qs(sid); if(!sel) return;
+    const wasNone = sel.options[0]?.value==='';
+    sel.innerHTML = wasNone ? '<option value="">Aucun</option>' : '';
+    LOTS.forEach(l=>{ const o=document.createElement('option'); o.value=l.id; o.textContent=`Lot ${l.numero} — ${l.proprietaire?.nom||''}`.trim(); sel.appendChild(o); });
+  });
+}
+function renderLots(lots) {
+  const grid = qs('lots-grid');
+  if(!lots.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="ei">🏠</div><h3>Aucun lot</h3><p>Ajoutez votre premier lot.</p></div>'; return; }
+  grid.innerHTML = lots.map(l => {
+    const statClass = {'paye':'bg','emis':'by','retard':'br'}[l.statut_paiement] || 'bgr';
+    const statLabel = {'paye':'✅ Payé','emis':'⏳ En attente','retard':'❌ Retard'}[l.statut_paiement] || '—';
+    return `<div class="lot-card" onclick="openLotDetail('${l.id}')">
+      <div class="lc-head"><span class="lc-num">Lot ${l.numero}</span><span class="lc-type">${l.type||''}</span></div>
+      <div class="lc-owner">${l.proprietaire?.nom||'—'}</div>
+      <div class="lc-det">${l.surface||'?'}m² · ${l.tantiemes||0} tantièmes · Ét. ${l.etage||'?'}</div>
+      <div style="margin-top:9px;display:flex;align-items:center;justify-content:space-between">
+        <span class="badge ${statClass}">${statLabel}</span>
+        <button class="btn btn-s btn-sm" onclick="event.stopPropagation();sendAppelSingle('${l.id}')">📧 Appel</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function filterLots() {
+  const q = qs('lots-q').value.toLowerCase();
+  const ft = qs('lots-ft').value;
+  const fs = qs('lots-fs').value;
+  const filtered = LOTS.filter(l => {
+    const nom = (l.proprietaire?.nom||'').toLowerCase();
+    return (!q || nom.includes(q) || l.numero?.toLowerCase().includes(q))
+      && (!ft || l.type===ft)
+      && (!fs || l.statut_paiement===fs);
+  });
+  renderLots(filtered);
+}
+function resetLotForm() {
+  qs('l-id').value=''; qs('lot-m-title').textContent='Ajouter un lot';
+  ['l-num','l-bat','l-etg','l-surf','l-tant','l-tsp','l-pnom','l-pemail','l-ptel','l-padr','l-lnom','l-lemail','l-ltel','l-ldate','l-pacq'].forEach(id=>{ const el=qs(id); if(el) el.value=''; });
+  qs('l-type').selectedIndex=0; qs('l-ppay').selectedIndex=0;
+  document.querySelector('input[name="l-occ"][value="proprio"]').checked=true; toggleLoc(false);
+}
+function toggleLoc(show) { qs('loc-fields').style.display = show?'':'none'; }
+function updateTantRem() {
+  const copro = COPROS.find(c=>c.id===CP);
+  if(!copro) return;
+  const total = copro.tantiemes_totaux||1000;
+  const used = LOTS.filter(l=>l.id!==qs('l-id').value).reduce((s,l)=>s+(l.tantiemes||0),0);
+  const remaining = total - used - (+qs('l-tant').value||0);
+  qs('tant-rem').textContent = `Restants : ${remaining} / ${total} tantièmes totaux`;
+}
+async function saveLot() {
+  if(!CP) return;
+  const id = qs('l-id').value;
+  const loue = document.querySelector('input[name="l-occ"]:checked').value === 'loue';
+  const data = {
+    copropriete_id: CP, numero:qs('l-num').value, batiment:qs('l-bat').value,
+    etage:qs('l-etg').value, type:qs('l-type').value, surface:+qs('l-surf').value||0,
+    tantiemes:+qs('l-tant').value||0, tantiemes_spec:+qs('l-tsp').value||0,
+    proprietaire:{ nom:qs('l-pnom').value, email:qs('l-pemail').value, tel:qs('l-ptel').value, adresse:qs('l-padr').value, acquisition:qs('l-pacq').value, paiement:qs('l-ppay').value },
+    locataire: loue ? { nom:qs('l-lnom').value, email:qs('l-lemail').value, tel:qs('l-ltel').value, entree:qs('l-ldate').value } : null,
+    loue
+  };
+  if(!data.numero) return toast('Numéro de lot obligatoire','w');
+  try {
+    if(id) await db.collection('lots').doc(id).update(data);
+    else await db.collection('lots').add({...data, created_at:firebase.firestore.FieldValue.serverTimestamp()});
+    closeModal('mo-lot'); loadLots(); toast('Lot enregistré ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function openLotDetail(id) {
+  const lot = LOTS.find(l=>l.id===id); if(!lot) return;
+  qs('lot-det-title').textContent = `Lot ${lot.numero} — ${lot.proprietaire?.nom||''}`;
+  const appSnap = await db.collection('appels_charges').where('lot_id','==',id).orderBy('date_emission','desc').get();
+  const appels = appSnap.docs.map(d=>({id:d.id,...d.data()}));
+  const totalDu = appels.reduce((s,a)=>s+(a.montant||0),0);
+  const totalPaye = appels.filter(a=>a.statut==='paye').reduce((s,a)=>s+(a.montant||0),0);
+  qs('lot-det-body').innerHTML = `
+    <div class="g2" style="margin-bottom:16px">
+      <div><div class="fs-title" style="margin-bottom:8px">Lot</div>
+        <table style="width:100%;font-size:13px"><tbody>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Type</td><td>${lot.type||'—'}</td></tr>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Surface</td><td>${lot.surface||'—'} m²</td></tr>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Tantièmes</td><td>${lot.tantiemes||0}</td></tr>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Bâtiment / Étage</td><td>${lot.batiment||'?'} / ${lot.etage||'?'}</td></tr>
+        </tbody></table>
+      </div>
+      <div><div class="fs-title" style="margin-bottom:8px">Propriétaire</div>
+        <table style="width:100%;font-size:13px"><tbody>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Nom</td><td>${lot.proprietaire?.nom||'—'}</td></tr>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Email</td><td>${lot.proprietaire?.email||'—'}</td></tr>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Téléphone</td><td>${lot.proprietaire?.tel||'—'}</td></tr>
+          <tr><td style="color:var(--text-sec);padding:3px 0">Occupation</td><td>${lot.loue?'Loué':'Occupé par le propriétaire'}</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+    <div class="fs-title" style="margin-bottom:8px">Historique des paiements</div>
+    <div style="display:flex;gap:14px;margin-bottom:12px">
+      <div class="kpi gr" style="flex:1;padding:12px"><div class="kpi-val" style="font-size:18px">${fmtEur(totalPaye)}</div><div class="kpi-lbl">Payé</div></div>
+      <div class="kpi re" style="flex:1;padding:12px"><div class="kpi-val" style="font-size:18px">${fmtEur(totalDu-totalPaye)}</div><div class="kpi-lbl">Solde dû</div></div>
+    </div>
+    <div class="tw"><table><thead><tr><th>Période</th><th>Montant</th><th>Dû le</th><th>Statut</th></tr></thead><tbody>
+      ${appels.map(a=>`<tr><td>${a.periode||'—'}</td><td>${fmtEur(a.montant)}</td><td>${fmtDate(a.date_limite)}</td><td><span class="badge ${a.statut==='paye'?'bg':a.statut==='retard'?'br':'by'}">${a.statut}</span></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-sec)">Aucun appel</td></tr>'}
+    </tbody></table></div>`;
+  qs('lot-det-edit').onclick = () => { closeModal('mo-lot-det'); editLot(lot); };
+  openModal('mo-lot-det');
+}
+function editLot(lot) {
+  qs('l-id').value=lot.id; qs('lot-m-title').textContent='Modifier le lot';
+  qs('l-num').value=lot.numero||''; qs('l-bat').value=lot.batiment||''; qs('l-etg').value=lot.etage||'';
+  qs('l-type').value=lot.type||'appartement'; qs('l-surf').value=lot.surface||'';
+  qs('l-tant').value=lot.tantiemes||''; qs('l-tsp').value=lot.tantiemes_spec||'';
+  const p=lot.proprietaire||{};
+  qs('l-pnom').value=p.nom||''; qs('l-pemail').value=p.email||''; qs('l-ptel').value=p.tel||'';
+  qs('l-padr').value=p.adresse||''; qs('l-pacq').value=p.acquisition||''; qs('l-ppay').value=p.paiement||'virement';
+  const loue = !!lot.loue;
+  document.querySelector(`input[name="l-occ"][value="${loue?'loue':'proprio'}"]`).checked=true;
+  toggleLoc(loue);
+  if(loue && lot.locataire) {
+    qs('l-lnom').value=lot.locataire.nom||''; qs('l-lemail').value=lot.locataire.email||'';
+    qs('l-ltel').value=lot.locataire.tel||''; qs('l-ldate').value=lot.locataire.entree||'';
+  }
+  openModal('mo-lot');
+}
+
+// ══════════════════════════════════════════════════════════
+// ASSEMBLEES GENERALES
+// ══════════════════════════════════════════════════════════
+let AG_DATA = {};
+async function loadAGList() {
+  if(!CP) return;
+  qs('ag-wizard').style.display='none'; qs('ag-list').style.display='';
+  const snap = await db.collection('assemblees').where('copropriete_id','==',CP).orderBy('date','desc').get();
+  const tb = qs('ag-tb');
+  if(snap.empty) { tb.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text-sec);padding:20px">Aucune AG</td></tr>'; return; }
+  const statLabel = { planifiee:'Planifiée', convoquee:'Convoquée', tenue:'Tenue', pv_signe:'PV signé' };
+  const statClass = { planifiee:'by', convoquee:'bb', tenue:'bo', pv_signe:'bg' };
+  tb.innerHTML = snap.docs.map(d=>{
+    const ag={id:d.id,...d.data()};
+    const date = ag.date?.toDate ? ag.date.toDate().toLocaleDateString('fr-FR') : ag.date || '—';
+    const docs = [ag.documents?.convocation_url?'📄 Conv.':'', ag.documents?.pv_url?'📋 PV':''].filter(Boolean).join(' ');
+    return `<tr>
+      <td>${date}</td>
+      <td>${ag.type||'AG Ordinaire'}</td>
+      <td><span class="badge ${statClass[ag.statut]||'bgr'}">${statLabel[ag.statut]||ag.statut}</span></td>
+      <td>${ag.ordre_du_jour?.length||0} résolution(s)</td>
+      <td style="font-size:12px">${docs||'—'}</td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${ag.statut==='planifiee'||ag.statut==='convoquee'?`<button class="btn btn-p btn-sm" onclick="envoyerConvocations('${ag.id}')">📧 Convoquer</button>`:''}
+        ${ag.statut==='tenue'?`<button class="btn btn-s btn-sm" onclick="openPV('${ag.id}')">📝 PV</button>`:''}
+        <button class="btn btn-d btn-sm" onclick="delAG('${ag.id}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+function startAGWizard() {
+  AG_DATA = { step:1, odj:[], copropriete_id:CP };
+  qs('ag-wizard').style.display=''; qs('ag-list').style.display='none';
+  qs('btn-new-ag').style.display='none';
+  renderAGWizard();
+}
+function renderAGWizard() {
+  const steps = ['Informations', 'Ordre du jour', 'Prévisualisation', 'Envoi'];
+  const stepsHTML = steps.map((s,i)=>`
+    <div class="ag-st">
+      <div class="ag-circle ${i+1<AG_DATA.step?'done':i+1===AG_DATA.step?'cur':'pend'}">${i+1<AG_DATA.step?'✓':i+1}</div>
+      ${i<3?`<div class="ag-line ${i+1<AG_DATA.step?'done':''}"></div>`:''}
+    </div>`).join('');
+  const content = {
+    1: `<div class="card">
+      <div class="st">Informations générales</div>
+      <div class="fr">
+        <div class="fg"><label>Type d'AG</label><select id="ag-type"><option value="ordinaire">AG Ordinaire</option><option value="extraordinaire">AG Extraordinaire</option></select></div>
+        <div class="fg"><label>Date</label><input type="date" id="ag-date" value="${AG_DATA.date||''}"></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label>Heure</label><input type="time" id="ag-heure" value="${AG_DATA.heure||''}"></div>
+        <div class="fg"><label>Lieu</label><input type="text" id="ag-lieu" value="${AG_DATA.lieu||''}" placeholder="5 rue de la Paix ou Visioconférence"></div>
+      </div>
+      <div class="fg"><label>Date limite réception des pouvoirs</label><input type="date" id="ag-pouvoirs" value="${AG_DATA.pouvoirs||''}"></div>
+      <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:16px">
+        <button class="btn btn-g" onclick="cancelAGWizard()">Annuler</button>
+        <button class="btn btn-p" onclick="agStep1Next()">Continuer →</button>
+      </div>
+    </div>`,
+    2: `<div class="card">
+      <div class="st">Ordre du jour</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        ${['Approbation des comptes','Vote du budget prévisionnel','Renouvellement mandat syndic','Travaux','Élection du conseil syndical','Questions diverses'].map(r=>
+          `<button class="btn btn-s btn-sm" onclick="addODJ('${r}')">${r}</button>`).join('')}
+      </div>
+      <div id="odj-list" style="margin-bottom:14px">${AG_DATA.odj.map((o,i)=>`
+        <div class="sort-item" draggable="true">
+          <span class="drag-h">⠿</span>
+          <span style="flex:1;font-size:13px">${o.titre}</span>
+          <select style="font-size:12px;padding:2px 6px;border:1px solid var(--border);border-radius:4px" onchange="AG_DATA.odj[${i}].majorite=this.value">
+            <option value="24" ${o.majorite==='24'?'selected':''}>Art. 24</option>
+            <option value="25" ${o.majorite==='25'?'selected':''}>Art. 25</option>
+            <option value="26" ${o.majorite==='26'?'selected':''}>Art. 26</option>
+          </select>
+          <button class="btn btn-d btn-sm" onclick="AG_DATA.odj.splice(${i},1);renderAGWizard()">×</button>
+        </div>`).join('')}
+      </div>
+      <div class="fg"><label>+ Résolution personnalisée</label>
+        <div style="display:flex;gap:8px"><input type="text" id="odj-custom" placeholder="Intitulé de la résolution"><button class="btn btn-p btn-sm" onclick="addCustomODJ()">Ajouter</button></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px">
+        <button class="btn btn-g" onclick="AG_DATA.step=1;renderAGWizard()">← Retour</button>
+        <button class="btn btn-p" onclick="agStep2Next()">Continuer →</button>
+      </div>
+    </div>`,
+    3: `<div class="card">
+      <div class="st">Aperçu de la convocation</div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;font-size:13px;line-height:1.8;max-height:400px;overflow-y:auto">
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-weight:700;font-size:16px">${COPROS.find(c=>c.id===CP)?.nom||''}</div>
+          <div style="color:var(--text-sec)">${COPROS.find(c=>c.id===CP)?.adresse||''}</div>
+        </div>
+        <div style="font-weight:700;margin-bottom:8px">CONVOCATION À L'ASSEMBLÉE GÉNÉRALE ${(AG_DATA.type||'ordinaire').toUpperCase()}</div>
+        <p>Madame, Monsieur,</p>
+        <p style="margin:8px 0">Vous êtes convoqué(e) à l'Assemblée Générale <strong>${AG_DATA.type||'Ordinaire'}</strong> de la copropriété qui se tiendra le <strong>${AG_DATA.date||'—'}</strong> à <strong>${AG_DATA.heure||'—'}</strong> en <strong>${AG_DATA.lieu||'—'}</strong>.</p>
+        <div style="margin:12px 0"><strong>Ordre du jour :</strong><ol style="padding-left:20px;margin-top:6px">${AG_DATA.odj.map(o=>`<li>${o.titre} (majorité art. ${o.majorite})</li>`).join('')}</ol></div>
+        <p>Les pouvoirs doivent être adressés avant le <strong>${AG_DATA.pouvoirs||'—'}</strong>.</p>
+        <div style="margin-top:20px;color:var(--text-sec);font-size:11px">Document généré par SyndicNova — Conforme Loi ALUR</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px">
+        <button class="btn btn-g" onclick="AG_DATA.step=2;renderAGWizard()">← Modifier</button>
+        <button class="btn btn-p" onclick="AG_DATA.step=4;renderAGWizard()">Continuer vers l'envoi →</button>
+      </div>
+    </div>`,
+    4: `<div class="card">
+      <div class="st">Envoi des convocations</div>
+      <div id="ag-send-list" style="border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;max-height:320px;overflow-y:auto">
+        ${LOTS.map(l=>`
+          <div class="send-item">
+            <input type="checkbox" class="ag-chk" value="${l.id}" data-email="${l.proprietaire?.email||''}" data-nom="${l.proprietaire?.nom||''}" checked>
+            <div style="flex:1"><div style="font-weight:600;font-size:13px">Lot ${l.numero} — ${l.proprietaire?.nom||'—'}</div><div style="font-size:11px;color:var(--text-sec)">${l.proprietaire?.email||'Pas d\'email'}</div></div>
+          </div>`).join('')||'<div style="padding:20px;text-align:center;color:var(--text-sec);font-size:13px">Aucun copropriétaire</div>'}
+      </div>
+      <div style="display:flex;justify-content:space-between">
+        <button class="btn btn-g" onclick="AG_DATA.step=3;renderAGWizard()">← Retour</button>
+        <button class="btn btn-p" onclick="saveAndSendAG()">📧 Enregistrer l'AG &amp; envoyer les convocations</button>
+      </div>
+    </div>`
+  }[AG_DATA.step];
+  qs('ag-wizard').innerHTML = `<div class="card" style="margin-bottom:16px"><div class="ag-steps">${stepsHTML}</div></div>${content}`;
+}
+function agStep1Next() {
+  const date=qs('ag-date')?.value, lieu=qs('ag-lieu')?.value;
+  if(!date||!lieu) return toast('Date et lieu obligatoires','w');
+  AG_DATA.date=date; AG_DATA.heure=qs('ag-heure')?.value||''; AG_DATA.lieu=lieu;
+  AG_DATA.type=qs('ag-type')?.value||'ordinaire'; AG_DATA.pouvoirs=qs('ag-pouvoirs')?.value||'';
+  AG_DATA.step=2; renderAGWizard();
+}
+function agStep2Next() {
+  if(!AG_DATA.odj.length) return toast('Ajoutez au moins une résolution','w');
+  AG_DATA.step=3; renderAGWizard();
+}
+function addODJ(titre) { AG_DATA.odj.push({titre,majorite:'24'}); renderAGWizard(); }
+function addCustomODJ() { const v=qs('odj-custom')?.value.trim(); if(!v) return; addODJ(v); }
+function cancelAGWizard() { qs('ag-wizard').style.display='none'; qs('ag-list').style.display=''; qs('btn-new-ag').style.display=''; loadAGList(); }
+async function saveAndSendAG() {
+  const checked = document.querySelectorAll('.ag-chk:checked');
+  const recipients = [...checked].map(c=>({id:c.value,email:c.dataset.email,nom:c.dataset.nom})).filter(r=>r.email);
+  try {
+    const agRef = await db.collection('assemblees').add({
+      copropriete_id:CP, type:`AG ${AG_DATA.type}`, date:firebase.firestore.Timestamp.fromDate(new Date(AG_DATA.date)),
+      heure:AG_DATA.heure, lieu:AG_DATA.lieu, statut:'convoquee',
+      ordre_du_jour:AG_DATA.odj, pouvoirs_limite:AG_DATA.pouvoirs,
+      convocations_envoyees_le:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await sendBulk('📧 Envoi des convocations', recipients, async (r,i,total) => {
+      await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATES.convocation, {
+        to_email:r.email, to_name:r.nom,
+        copro_nom:COPROS.find(c=>c.id===CP)?.nom||'',
+        ag_date:AG_DATA.date, ag_heure:AG_DATA.heure, ag_lieu:AG_DATA.lieu,
+        ag_type:AG_DATA.type, ordre_du_jour:AG_DATA.odj.map(o=>o.titre).join('\n')
+      });
+    });
+    cancelAGWizard();
+    toast('AG enregistrée et convocations envoyées ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function envoyerConvocations(agId) {
+  const snap = await db.collection('assemblees').doc(agId).get();
+  if(!snap.exists) return;
+  const ag = snap.data();
+  const recipients = LOTS.map(l=>({id:l.id,email:l.proprietaire?.email||'',nom:l.proprietaire?.nom||''})).filter(r=>r.email);
+  await sendBulk('📧 Envoi des convocations', recipients, async (r) => {
+    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATES.convocation, {
+      to_email:r.email, to_name:r.nom,
+      copro_nom:COPROS.find(c=>c.id===CP)?.nom||'',
+      ag_date:ag.date?.toDate?.().toLocaleDateString('fr-FR')||'',
+      ag_heure:ag.heure||'', ag_lieu:ag.lieu||'', ag_type:ag.type||''
+    });
+  });
+}
+async function openPV(agId) {
+  const snap = await db.collection('assemblees').doc(agId).get();
+  if(!snap.exists) return;
+  const ag = snap.data();
+  const odj = ag.ordre_du_jour || [];
+  qs('pv-body').innerHTML = `
+    <div class="fg"><label>Présents (tantièmes)</label><input type="number" id="pv-tantiemes" value="${ag.pv?.tantiemes_presences||''}"></div>
+    <div class="st" style="margin-top:14px">Résolutions</div>
+    ${odj.map((o,i)=>`
+      <div class="fs" style="margin-bottom:14px;padding-bottom:14px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:8px">${i+1}. ${o.titre}</div>
+        <div class="fr3">
+          <div class="fg"><label>Votes POUR</label><input type="number" id="pv-pour-${i}" min="0" value="${ag.pv?.resolutions?.[i]?.pour||''}"></div>
+          <div class="fg"><label>Votes CONTRE</label><input type="number" id="pv-contre-${i}" min="0" value="${ag.pv?.resolutions?.[i]?.contre||''}"></div>
+          <div class="fg"><label>Abstentions</label><input type="number" id="pv-abs-${i}" min="0" value="${ag.pv?.resolutions?.[i]?.abs||''}"></div>
+        </div>
+      </div>`).join('')}
+    <input type="hidden" id="pv-ag-id" value="${agId}">
+    <input type="hidden" id="pv-odj-count" value="${odj.length}">`;
+  openModal('mo-pv');
+}
+async function savePV() {
+  const agId = qs('pv-ag-id').value;
+  const count = +qs('pv-odj-count').value;
+  const resolutions = [];
+  for(let i=0;i<count;i++) {
+    const pour = +qs(`pv-pour-${i}`)?.value||0;
+    const contre = +qs(`pv-contre-${i}`)?.value||0;
+    const abs = +qs(`pv-abs-${i}`)?.value||0;
+    resolutions.push({pour,contre,abs,adopte:pour>contre});
+  }
+  try {
+    await db.collection('assemblees').doc(agId).update({
+      statut:'pv_signe',
+      pv:{ tantiemes_presences:+qs('pv-tantiemes').value||0, resolutions }
+    });
+    closeModal('mo-pv'); loadAGList(); toast('PV enregistré ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function delAG(id) {
+  if(!confirm('Supprimer cette AG ?')) return;
+  await db.collection('assemblees').doc(id).delete(); loadAGList(); toast('Supprimé','s');
+}
+
+// ══════════════════════════════════════════════════════════
+// BUDGET
+// ══════════════════════════════════════════════════════════
+async function loadBudget() {
+  const yr = +qs('budget-yr').value || new Date().getFullYear();
+  const yr_sel = qs('budget-yr');
+  if(yr_sel.options.length===0) {
+    const cur = new Date().getFullYear();
+    for(let y=cur+1;y>=cur-3;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; yr_sel.appendChild(o); }
+    yr_sel.value = cur;
+  }
+  if(!CP) return;
+  const snap = await db.collection('budgets').where('copropriete_id','==',CP).where('annee','==',yr).limit(1).get();
+  const budgetData = snap.empty ? {} : snap.docs[0].data();
+  const tb = qs('budget-tb');
+  tb.innerHTML = BUDGET_POSTES.map(p=>{
+    const n = budgetData[p]?.n || 0;
+    const n1 = budgetData[p]?.n1 || 0;
+    return `<tr>
+      <td>${p}</td>
+      <td><input type="number" class="bud-n" data-poste="${p}" value="${n}" style="width:100%;padding:5px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:13px" oninput="updateBudgetTotals()"></td>
+      <td><input type="number" class="bud-n1" data-poste="${p}" value="${n1}" style="width:100%;padding:5px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:13px" oninput="updateBudgetTotals()"></td>
+      <td id="bud-ec-${p.replace(/\s+/g,'-')}" style="font-weight:600;color:${n-n1>=0?'var(--green)':'var(--red)'}">${n-n1>=0?'+':''}${n-n1}</td>
+    </tr>`;
+  }).join('');
+  updateBudgetTotals();
+}
+function updateBudgetTotals() {
+  let totN=0, totN1=0;
+  document.querySelectorAll('.bud-n').forEach(el=>totN+=(+el.value||0));
+  document.querySelectorAll('.bud-n1').forEach(el=>totN1+=(+el.value||0));
+  qs('bud-tot-n').textContent=fmtEur(totN); qs('bud-tot-n1').textContent=fmtEur(totN1);
+  qs('bud-tot-ec').textContent=(totN-totN1>=0?'+':'')+fmtEur(totN-totN1);
+  qs('bud-tot-ec').style.color=totN-totN1>=0?'var(--green)':'var(--red)';
+}
+async function saveBudget() {
+  if(!CP) return;
+  const yr = +qs('budget-yr').value;
+  const data = { copropriete_id:CP, annee:yr };
+  document.querySelectorAll('.bud-n').forEach(el=>{ const p=el.dataset.poste; if(!data[p]) data[p]={}; data[p].n=+el.value||0; });
+  document.querySelectorAll('.bud-n1').forEach(el=>{ const p=el.dataset.poste; if(!data[p]) data[p]={}; data[p].n1=+el.value||0; });
+  try {
+    const snap = await db.collection('budgets').where('copropriete_id','==',CP).where('annee','==',yr).limit(1).get();
+    if(snap.empty) await db.collection('budgets').add(data);
+    else await snap.docs[0].ref.update(data);
+    toast('Budget enregistré ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function validerBudget() {
+  await saveBudget();
+  toast('Appels de charges générés — allez dans l\'onglet Appels de charges','i');
+  switchTab('compta','appels');
+}
+
+// ══════════════════════════════════════════════════════════
+// APPELS DE CHARGES
+// ══════════════════════════════════════════════════════════
+async function previewAppels() {
+  if(!CP||!LOTS.length) return toast('Pas de lots','w');
+  const trim = qs('ap-trim').value, yr = qs('ap-yr').value;
+  const snap = await db.collection('budgets').where('copropriete_id','==',CP).where('annee','==',+yr).limit(1).get();
+  const budgetData = snap.empty ? {} : snap.docs[0].data();
+  const totalBudget = BUDGET_POSTES.reduce((s,p)=>s+(budgetData[p]?.n||0),0);
+  const copro = COPROS.find(c=>c.id===CP);
+  const totalTant = copro?.tantiemes_totaux || 1000;
+  const box = qs('ap-preview');
+  box.innerHTML = `<div class="tw" style="margin-top:10px"><table><thead><tr><th>Lot</th><th>Copropriétaire</th><th>Tantièmes</th><th>Quote-part</th></tr></thead><tbody>
+    ${LOTS.map(l=>{
+      const qp = totalTant>0 ? (totalBudget/4)*(l.tantiemes/totalTant) : 0;
+      return `<tr><td>Lot ${l.numero}</td><td>${l.proprietaire?.nom||'—'}</td><td>${l.tantiemes}</td><td><strong>${fmtEur(qp)}</strong></td></tr>`;
+    }).join('')}
+    <tr style="background:var(--accent-l)"><td colspan="3"><strong>Total</strong></td><td><strong>${fmtEur(totalBudget/4)}</strong></td></tr>
+  </tbody></table></div>`;
+}
+async function genEtEnvoyerAppels() {
+  if(!CP||!LOTS.length) return toast('Pas de lots','w');
+  const trim=qs('ap-trim').value, yr=+qs('ap-yr').value;
+  const snap=await db.collection('budgets').where('copropriete_id','==',CP).where('annee','==',yr).limit(1).get();
+  const budgetData=snap.empty?{}:snap.docs[0].data();
+  const totalBudget=BUDGET_POSTES.reduce((s,p)=>s+(budgetData[p]?.n||0),0);
+  const copro=COPROS.find(c=>c.id===CP);
+  const totalTant=copro?.tantiemes_totaux||1000;
+  const today=new Date(); const duDate=new Date(today); duDate.setDate(duDate.getDate()+30);
+  const recipients = LOTS.filter(l=>l.proprietaire?.email).map(l=>({
+    id:l.id, email:l.proprietaire.email, nom:l.proprietaire.nom||'', lot_num:l.numero,
+    montant: totalTant>0?(totalBudget/4)*(l.tantiemes/totalTant):0, tantiemes:l.tantiemes
+  }));
+  await sendBulk('💶 Envoi des appels de charges', recipients, async (r) => {
+    const apRef = await db.collection('appels_charges').add({
+      copropriete_id:CP, lot_id:r.id, lot_num:r.lot_num, trimestre:trim, annee:yr,
+      periode:`${trim} ${yr}`, montant:Math.round(r.montant*100)/100,
+      date_emission:firebase.firestore.FieldValue.serverTimestamp(),
+      date_limite:firebase.firestore.Timestamp.fromDate(duDate),
+      statut:'emis', envoye_le:firebase.firestore.FieldValue.serverTimestamp(), relances:[]
+    });
+    await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATES.appel, {
+      to_email:r.email, to_name:r.nom, lot_num:r.lot_num,
+      copro_nom:copro?.nom||'', periode:`${trim} ${yr}`,
+      montant:fmtEur(r.montant), date_limite:duDate.toLocaleDateString('fr-FR'),
+      iban:copro?.banque?.iban||'', tantiemes:r.tantiemes, total_tantiemes:totalTant
+    });
+  });
+}
+async function sendAppelSingle(lotId) {
+  const lot = LOTS.find(l=>l.id===lotId);
+  if(!lot?.proprietaire?.email) return toast('Email du propriétaire manquant','w');
+  toast('Fonctionnalité : générez d\'abord un appel de charges depuis l\'onglet Comptabilité','i');
+}
+
+// ══════════════════════════════════════════════════════════
+// SUIVI PAIEMENTS
+// ══════════════════════════════════════════════════════════
+async function loadSuivi() {
+  if(!CP) return;
+  let q = db.collection('appels_charges').where('copropriete_id','==',CP).orderBy('date_emission','desc');
+  const snap = await q.get();
+  let appels = snap.docs.map(d=>({id:d.id,...d.data()}));
+  const fs = qs('suivi-fs').value, fp = qs('suivi-fp').value;
+  if(fs) appels = appels.filter(a=>a.statut===fs);
+  if(fp) appels = appels.filter(a=>a.periode===fp);
+  const periods = [...new Set(appels.map(a=>a.periode).filter(Boolean))];
+  const fpEl = qs('suivi-fp');
+  if(fpEl.options.length<=1) periods.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p; fpEl.appendChild(o); });
+  const tb = qs('suivi-tb');
+  if(!appels.length) { tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text-sec);padding:20px">Aucun appel</td></tr>'; return; }
+  const retardDate = new Date(Date.now()-30*24*3600*1000);
+  appels.forEach(a => {
+    if(a.statut==='emis' && a.date_limite?.toDate?.() < retardDate) db.collection('appels_charges').doc(a.id).update({statut:'retard'}).catch(()=>{});
+  });
+  tb.innerHTML = appels.map(a=>`<tr>
+    <td>Lot ${a.lot_num||'—'}</td>
+    <td>${LOTS.find(l=>l.id===a.lot_id)?.proprietaire?.nom||'—'}</td>
+    <td>${a.periode||'—'}</td>
+    <td>${fmtEur(a.montant)}</td>
+    <td>${fmtDate(a.date_limite)}</td>
+    <td>${a.paye_le?fmtDate(a.paye_le):'—'}</td>
+    <td><span class="badge ${a.statut==='paye'?'bg':a.statut==='retard'?'br':'by'}">${a.statut}</span></td>
+    <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+      ${a.statut!=='paye'?`<button class="btn btn-s btn-sm" onclick="marquerPaye('${a.id}')">💰 Payé</button>
+      <button class="btn btn-d btn-sm" onclick="openRelance('${a.id}')">📧 Relancer</button>`:''}
+    </div></td>
+  </tr>`).join('');
+}
+async function marquerPaye(id) {
+  await db.collection('appels_charges').doc(id).update({statut:'paye', paye_le:firebase.firestore.FieldValue.serverTimestamp()});
+  loadSuivi(); toast('Marqué comme payé ✓','s');
+}
+function openRelance(appelId) {
+  qs('rel-ap-id').value = appelId;
+  qs('rel-info').textContent = 'Un email de relance sera envoyé au copropriétaire avec un rappel du montant dû.';
+  openModal('mo-relance');
+}
+async function envoyerRelance() {
+  const id = qs('rel-ap-id').value, niv = +qs('rel-niv').value;
+  const snap = await db.collection('appels_charges').doc(id).get();
+  if(!snap.exists) return;
+  const ap = snap.data();
+  const lot = LOTS.find(l=>l.id===ap.lot_id);
+  if(!lot?.proprietaire?.email) return toast('Email manquant','w');
+  const tpl = [EMAILJS_TEMPLATES.relance1, EMAILJS_TEMPLATES.relance2, EMAILJS_TEMPLATES.relance3][niv-1];
+  try {
+    await emailjs.send(EMAILJS_SERVICE, tpl, { to_email:lot.proprietaire.email, to_name:lot.proprietaire.nom||'', lot_num:lot.numero, copro_nom:COPROS.find(c=>c.id===CP)?.nom||'', montant:fmtEur(ap.montant), periode:ap.periode||'' });
+    await db.collection('appels_charges').doc(id).update({ relances:firebase.firestore.FieldValue.arrayUnion({date:new Date().toISOString(),niveau:niv}) });
+    closeModal('mo-relance'); toast(`Relance niveau ${niv} envoyée ✓`,'s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function genRapportAnnuel() {
+  toast('Rapport annuel : fonctionnalité Firebase Function — configurez vos Functions pour activer la génération PDF','i');
+}
+
+// ══════════════════════════════════════════════════════════
+// DOCUMENTS
+// ══════════════════════════════════════════════════════════
+async function loadDocuments() {
+  if(!CP) return;
+  await loadLots();
+  const snap = await db.collection('documents').where('copropriete_id','==',CP).orderBy('created_at','desc').get();
+  const docs = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderDocs(docs);
+  const ayr = qs('at-yr');
+  if(ayr&&ayr.options.length===0){ const c=new Date().getFullYear(); for(let y=c;y>=c-5;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; ayr.appendChild(o); } }
+}
+function renderDocs(docs) {
+  const grid = qs('docs-grid');
+  const catIcons = { ag:'📋', comptabilite:'💰', contrats:'📄', entretien:'🏗️', juridique:'⚖️', divers:'📁' };
+  if(!docs.length) { grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">📂</div><h3>Aucun document</h3><p>Uploadez votre premier document.</p></div>'; return; }
+  grid.innerHTML = docs.map(d=>`
+    <div class="doc-card">
+      <div class="doc-icon">${catIcons[d.categorie]||'📄'}</div>
+      <div class="doc-name">${d.nom||'Sans nom'}</div>
+      <div class="doc-meta">${d.categorie||'—'} · ${fmtDate(d.created_at)}</div>
+      ${d.description?`<div style="font-size:11px;color:var(--text-sec)">${d.description}</div>`:''}
+      <div class="doc-actions">
+        <a href="${d.storage_url||'#'}" target="_blank" class="btn btn-s btn-sm">⬇️ Télécharger</a>
+        <button class="btn btn-d btn-sm" onclick="delDoc('${d.id}','${d.storage_path||''}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+function filterDocs() {
+  const q=qs('docs-q').value.toLowerCase(), fc=qs('docs-fc').value;
+  db.collection('documents').where('copropriete_id','==',CP).orderBy('created_at','desc').get().then(snap=>{
+    let docs=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(q) docs=docs.filter(d=>(d.nom||'').toLowerCase().includes(q));
+    if(fc) docs=docs.filter(d=>d.categorie===fc);
+    renderDocs(docs);
+  });
+}
+async function uploadDoc() {
+  const file = qs('doc-file').files[0];
+  if(!file) return toast('Sélectionnez un fichier','w');
+  const nom = qs('doc-nom').value||file.name;
+  try {
+    const path = `documents/${CU.uid}/${CP}/${Date.now()}_${file.name}`;
+    const ref = stor.ref(path);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    await db.collection('documents').add({
+      copropriete_id:CP, lot_id:qs('doc-lot').value||null,
+      nom, categorie:qs('doc-cat').value, description:qs('doc-desc').value,
+      storage_url:url, storage_path:path, taille:file.size,
+      created_at:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    closeModal('mo-doc'); loadDocuments(); toast('Document uploadé ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function delDoc(id, path) {
+  if(!confirm('Supprimer ce document ?')) return;
+  await db.collection('documents').doc(id).delete();
+  if(path) try { await stor.ref(path).delete(); } catch(e) {}
+  loadDocuments(); toast('Supprimé','s');
+}
+function genPreEtat() { toast('Génération PDF : configurez votre Firebase Function generatePreEtatDate','i'); }
+function genAttestation() { toast('Génération PDF : configurez votre Firebase Function generateAttestationCharges','i'); }
+
+// ══════════════════════════════════════════════════════════
+// PARAMETRES
+// ══════════════════════════════════════════════════════════
+async function loadProfil() {
+  if(!CU) return;
+  const snap = await db.collection('users').doc(CU.uid).get();
+  const d = snap.data()||{};
+  qs('p-nom').value=d.nom||''; qs('p-tel').value=d.tel||''; qs('p-email').value=d.email||CU.email||'';
+  qs('p-adr').value=d.adresse||''; qs('p-cabinet').value=d.cabinet||'';
+}
+async function saveProfil() {
+  try {
+    await db.collection('users').doc(CU.uid).update({ nom:qs('p-nom').value, tel:qs('p-tel').value, adresse:qs('p-adr').value, cabinet:qs('p-cabinet').value });
+    toast('Profil enregistré ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function saveNotif() {
+  try {
+    await db.collection('users').doc(CU.uid).update({ notif_impayes:qs('n-imp').checked, notif_contrats:qs('n-ct').checked, notif_ag:qs('n-ag').checked, notif_appels:qs('n-ap').checked });
+    toast('Préférences enregistrées ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function loadCoprsList() {
+  const box = qs('copros-list'); box.innerHTML='';
+  COPROS.forEach(c=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div style="font-weight:700;margin-bottom:3px">${c.nom}</div><div style="font-size:12px;color:var(--text-sec)">${c.adresse||'—'} · ${c.nb_lots||0} lots</div></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-s btn-sm" onclick='editCopro(${JSON.stringify(c)})'>✏️ Modifier</button>
+      </div>
+    </div>`;
+    box.appendChild(card);
+  });
+}
+function editCopro(c) {
+  qs('nc-title').textContent='Modifier la copropriété'; qs('nc-id').value=c.id;
+  qs('nc-nom').value=c.nom||''; qs('nc-adr').value=c.adresse||'';
+  qs('nc-lots').value=c.nb_lots||''; qs('nc-tant').value=c.tantiemes_totaux||''; qs('nc-siret').value=c.siret||'';
+  openModal('mo-nc');
+}
+async function saveCopro() {
+  const id = qs('nc-id').value;
+  const data = { nom:qs('nc-nom').value, adresse:qs('nc-adr').value, nb_lots:+qs('nc-lots').value||0, tantiemes_totaux:+qs('nc-tant').value||1000, siret:qs('nc-siret').value, syndic_uid:CU.uid };
+  if(!data.nom) return toast('Nom obligatoire','w');
+  const snap = await db.collection('users').doc(CU.uid).get();
+  const plan = snap.data()?.plan||'benevole';
+  if(!id && COPROS.length >= PLANS[plan].max_copros) { openModal('mo-upgrade'); return toast(`Limite de ${PLANS[plan].max_copros} copropriété(s) atteinte — passez à un plan supérieur`,'w'); }
+  try {
+    if(id) {
+      await db.collection('coproprietes').doc(id).update(data);
+      const i=COPROS.findIndex(c=>c.id===id); if(i>=0) COPROS[i]={id,...data};
+    } else {
+      const ref=await db.collection('coproprietes').add({...data,created_at:firebase.firestore.FieldValue.serverTimestamp()});
+      COPROS.push({id:ref.id,...data});
+    }
+    refreshCoproSel(); closeModal('mo-nc'); loadCoprsList(); toast('Copropriété enregistrée ✓','s');
+  } catch(e) { toast(e.message,'e'); }
+}
+async function loadPlanInfo() {
+  const snap = await db.collection('users').doc(CU.uid).get();
+  const plan = snap.data()?.plan||'benevole';
+  const p = PLANS[plan];
+  qs('plan-info').innerHTML = `<div class="badge bb" style="font-size:13px;padding:6px 14px;margin-bottom:10px">${p.label}</div>
+    <div style="font-size:14px;color:var(--text-sec)">${p.price} · ${p.max_copros} copropriété(s) · ${p.max_lots} lots max</div>`;
+}
+async function selectPlan(plan) {
+  SELECTED_PLAN = plan;
+  document.querySelectorAll('.plan-card').forEach(c=>c.classList.remove('sel'));
+  qs(`pc-${plan==='benevole'?'bene':plan==='independant'?'ind':'cab'}`).classList.add('sel');
+}
+async function confirmPlan() {
+  if(!SELECTED_PLAN) return toast('Sélectionnez un plan','w');
+  await db.collection('users').doc(CU.uid).update({plan:SELECTED_PLAN});
+  qs('plan-tag').textContent = PLANS[SELECTED_PLAN].label;
+  closeModal('mo-upgrade'); loadPlanInfo(); toast(`Plan ${PLANS[SELECTED_PLAN].label} activé ✓`,'s');
+}
+async function exportData() {
+  const data = { coproprietes:COPROS, lots:LOTS };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`syndic-nova-export-${Date.now()}.json`; a.click();
+}
+async function deleteAccount() {
+  if(!confirm('ATTENTION : cette action est irréversible. Supprimer votre compte ?')) return;
+  if(!confirm('Dernière confirmation — supprimer définitivement ?')) return;
+  try { await CU.delete(); toast('Compte supprimé','s'); }
+  catch(e) { if(e.code==='auth/requires-recent-login') toast('Re-connectez-vous puis réessayez','w'); else toast(e.message,'e'); }
+}
+
+// ══════════════════════════════════════════════════════════
+// SEND BULK (progress modal)
+// ══════════════════════════════════════════════════════════
+async function sendBulk(title, recipients, sendFn) {
+  qs('send-title').textContent = title;
+  qs('send-list').innerHTML = recipients.map(r=>`
+    <div class="send-item" id="si-${r.id}">
+      <span class="si-status">⏳</span>
+      <div><div style="font-weight:600">${r.nom||r.email}</div><div style="font-size:11px;color:var(--text-sec)">${r.email}</div></div>
+    </div>`).join('');
+  qs('send-prog').style.width='0%';
+  qs('btn-close-send').style.display='none';
+  qs('send-summary').textContent='';
+  openModal('mo-send');
+  let ok=0, fail=0;
+  for(let i=0;i<recipients.length;i++) {
+    const r = recipients[i];
+    const item = qs(`si-${r.id}`);
+    try {
+      await sendFn(r, i, recipients.length);
+      if(item) item.querySelector('.si-status').textContent='✅';
+      ok++;
+    } catch(e) {
+      if(item) { item.querySelector('.si-status').textContent='❌'; item.title=e.message; }
+      fail++;
+    }
+    qs('send-prog').style.width = `${Math.round((i+1)/recipients.length*100)}%`;
+    await new Promise(res=>setTimeout(res,150));
+  }
+  qs('send-title').textContent = 'Envoi terminé';
+  qs('send-summary').textContent = `${ok} envoyé(s) avec succès${fail?`, ${fail} échec(s)`:''}.`;
+  qs('btn-close-send').style.display='';
+}
+
+// ══════════════════════════════════════════════════════════
+// YEAR SELECTORS INIT
+// ══════════════════════════════════════════════════════════
+(function initYearSelectors() {
+  const cur = new Date().getFullYear();
+  ['ap-yr'].forEach(id => {
+    const sel = qs(id); if(!sel) return;
+    for(let y=cur+1;y>=cur-2;y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); }
+    sel.value=cur;
+  });
+})();
+</script>
+</body>
+</html>
+
