@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — SyndicNova</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --bg:#F4F6F9; --white:#fff; --text:#1C1C1E; --text-sec:#6B7280;
+  --accent:#2C4A6E; --accent-l:#E8EEF5;
+  --copper:#B07D4A; --copper-bg:#FEF3E2;
+  --green:#10B981; --green-bg:#ECFDF5;
+  --violet:#6D28D9; --violet-bg:#EDE9FE;
+  --red:#EF4444; --red-bg:#FEF2F2;
+  --border:#E5E7EB; --shadow:0 1px 4px rgba(0,0,0,.06);
+  --r:10px; --ft:'Plus Jakarta Sans',sans-serif; --fb:'Instrument Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--fb);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+
+/* ── AUTH ── */
+#auth-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a2f47,#2C4A6E)}
+.auth-card{background:var(--white);border-radius:14px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,.14)}
+.auth-brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.auth-brand img{width:40px;height:40px;border-radius:9px}
+.auth-brand h1{font-family:var(--ft);font-size:18px;font-weight:700;color:var(--accent)}
+.auth-brand p{font-size:11px;color:var(--text-sec);margin-top:1px}
+.auth-restrict{display:inline-block;background:var(--copper-bg);color:var(--copper);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin:14px 0 20px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;font-weight:600;color:var(--text-sec);margin-bottom:5px}
+.fg input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-family:var(--fb);font-size:13px;color:var(--text);outline:none;transition:border-color 200ms}
+.fg input:focus{border-color:var(--accent)}
+.btn-primary{width:100%;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-family:var(--ft);font-size:14px;font-weight:700;cursor:pointer;transition:opacity 200ms;margin-top:4px}
+.btn-primary:hover{opacity:.88}
+#auth-err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+
+/* ── LAYOUT ── */
+#admin{display:none;flex-direction:column;min-height:100vh}
+
+/* ── HEADER ── */
+.adm-hdr{background:var(--accent);padding:0 32px;display:flex;align-items:center;gap:16px;height:56px}
+.adm-brand{display:flex;align-items:center;gap:10px;flex:1}
+.adm-brand img{width:28px;height:28px;border-radius:7px}
+.adm-brand-name{font-family:var(--ft);font-weight:700;font-size:16px;color:#fff}
+.adm-tag{background:rgba(176,125,74,.3);border:1px solid rgba(176,125,74,.5);color:#F5C87A;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:.3px}
+.adm-right{display:flex;align-items:center;gap:12px}
+.adm-email{font-size:12px;color:rgba(255,255,255,.65)}
+.btn-logout{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:600;padding:6px 14px;border-radius:7px;cursor:pointer;font-family:var(--fb);transition:background 200ms}
+.btn-logout:hover{background:rgba(255,255,255,.18)}
+
+/* ── BODY ── */
+.adm-body{padding:28px 32px;flex:1;max-width:1440px;width:100%;margin:0 auto}
+
+/* ── KPI GRID ── */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+.kpi{background:var(--white);border-radius:var(--r);padding:20px 22px;box-shadow:var(--shadow)}
+.kpi.hl{background:var(--accent)}
+.kpi-lbl{font-size:11px;font-weight:600;color:var(--text-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.kpi.hl .kpi-lbl{color:rgba(255,255,255,.6)}
+.kpi-val{font-family:var(--ft);font-size:30px;font-weight:800;color:var(--text);line-height:1}
+.kpi.hl .kpi-val{color:#fff}
+.kpi-sub{font-size:11px;color:var(--text-sec);margin-top:5px}
+.kpi.hl .kpi-sub{color:rgba(255,255,255,.5)}
+
+/* ── PLAN CARDS ── */
+.plan-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.plan-card{background:var(--white);border-radius:var(--r);padding:20px 22px;box-shadow:var(--shadow);display:flex;align-items:center;gap:16px}
+.plan-ico{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.plan-ico.b{background:var(--accent-l)} .plan-ico.i{background:var(--violet-bg)} .plan-ico.c{background:var(--copper-bg)}
+.plan-info{flex:1}
+.plan-name{font-family:var(--ft);font-size:14px;font-weight:700}
+.plan-desc{font-size:11px;color:var(--text-sec);margin-top:2px}
+.plan-r{text-align:right}
+.plan-count{font-family:var(--ft);font-size:30px;font-weight:800;color:var(--accent)}
+.plan-mrr-lbl{font-size:10px;color:var(--text-sec);text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.plan-mrr-val{font-family:var(--ft);font-size:14px;font-weight:700;color:var(--text)}
+
+/* ── TABLE SECTION ── */
+.section{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.sec-hdr{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sec-title{font-family:var(--ft);font-size:15px;font-weight:700;flex:1}
+.sec-badge{background:var(--bg);color:var(--text-sec);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+.toolbar{padding:12px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:0 0 260px}
+.search-wrap input{width:100%;padding:7px 12px 7px 32px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--fb);outline:none;background:var(--bg);transition:all 200ms}
+.search-wrap input:focus{border-color:var(--accent);background:#fff}
+.search-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-sec);font-size:13px;pointer-events:none}
+.flt{padding:6px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:var(--bg);font-family:var(--fb);color:var(--text-sec);transition:all 150ms}
+.flt.on,.flt:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.tbar-info{margin-left:auto;font-size:12px;color:var(--text-sec)}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.4px;background:var(--bg);border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background 120ms}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#FAFBFC}
+td{padding:13px 16px;vertical-align:middle}
+
+/* ── CELLS ── */
+.user-cell{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-l);color:var(--accent);font-family:var(--ft);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.u-name{font-weight:600;font-size:13px}
+.u-email{font-size:11px;color:var(--text-sec);margin-top:1px}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.badge.benevole{background:var(--accent-l);color:var(--accent)}
+.badge.independant{background:var(--violet-bg);color:var(--violet)}
+.badge.cabinet{background:var(--copper-bg);color:var(--copper)}
+.badge.actif{background:var(--green-bg);color:var(--green)}
+.badge.attente{background:#F3F4F6;color:#9CA3AF}
+.num{font-family:var(--ft);font-weight:700}
+.num-unit{font-size:11px;color:var(--text-sec)}
+.empty-row{padding:48px;text-align:center;color:var(--text-sec)}
+.empty-row .ei{font-size:32px;margin-bottom:8px}
+.loading-row{padding:40px;text-align:center;color:var(--text-sec);font-size:13px}
+.refresh-btn{background:none;border:1.5px solid var(--border);color:var(--text-sec);font-family:var(--fb);font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px;cursor:pointer;transition:all 150ms;margin-left:4px}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img src="logo.svg" alt="SyndicNova">
+      <div>
+        <h1>SyndicNova</h1>
+        <p>Espace administration</p>
+      </div>
+    </div>
+    <div class="auth-restrict">🔐 Accès restreint — admin uniquement</div>
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="adm-email" placeholder="admin@syndicnova.com" autocomplete="email">
+    </div>
+    <div class="fg">
+      <label>Mot de passe</label>
+      <input type="password" id="adm-pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn-primary" onclick="login()">Accéder au dashboard</button>
+    <div id="auth-err"></div>
+  </div>
+</div>
+
+<!-- ── ADMIN ── -->
+<div id="admin">
+
+  <header class="adm-hdr">
+    <div class="adm-brand">
+      <img src="logo.svg" alt="">
+      <span class="adm-brand-name">SyndicNova</span>
+      <span class="adm-tag">ADMIN</span>
+    </div>
+    <div class="adm-right">
+      <span class="adm-email" id="adm-lbl"></span>
+      <button class="btn-logout" onclick="firebase.auth().signOut()">Déconnexion</button>
+    </div>
+  </header>
+
+  <div class="adm-body">
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi hl">
+        <div class="kpi-lbl">Clients total</div>
+        <div class="kpi-val" id="k-total">—</div>
+        <div class="kpi-sub">comptes créés</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">MRR estimé</div>
+        <div class="kpi-val" id="k-mrr">—</div>
+        <div class="kpi-sub">revenus mensuels</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Bénévoles</div>
+        <div class="kpi-val" id="k-b">—</div>
+        <div class="kpi-sub">9,90 € / mois</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Indépendants</div>
+        <div class="kpi-val" id="k-i">—</div>
+        <div class="kpi-sub">29,90 € / mois</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-lbl">Cabinets</div>
+        <div class="kpi-val" id="k-c">—</div>
+        <div class="kpi-sub">79,90 € / mois</div>
+      </div>
+    </div>
+
+    <!-- Plans détail -->
+    <div class="plan-row">
+      <div class="plan-card">
+        <div class="plan-ico b">🏠</div>
+        <div class="plan-info">
+          <div class="plan-name">Bénévole</div>
+          <div class="plan-desc">1 copro · 10 lots · 9,90 € / mois</div>
+        </div>
+        <div class="plan-r">
+          <div class="plan-count" id="pc-b">—</div>
+          <div class="plan-mrr-lbl">MRR</div>
+          <div class="plan-mrr-val" id="pm-b">—</div>
+        </div>
+      </div>
+      <div class="plan-card">
+        <div class="plan-ico i">🏢</div>
+        <div class="plan-info">
+          <div class="plan-name">Indépendant</div>
+          <div class="plan-desc">10 copros · 50 lots · 29,90 € / mois</div>
+        </div>
+        <div class="plan-r">
+          <div class="plan-count" id="pc-i">—</div>
+          <div class="plan-mrr-lbl">MRR</div>
+          <div class="plan-mrr-val" id="pm-i">—</div>
+        </div>
+      </div>
+      <div class="plan-card">
+        <div class="plan-ico c">🏙️</div>
+        <div class="plan-info">
+          <div class="plan-name">Cabinet</div>
+          <div class="plan-desc">Illimité · 79,90 € / mois</div>
+        </div>
+        <div class="plan-r">
+          <div class="plan-count" id="pc-c">—</div>
+          <div class="plan-mrr-lbl">MRR</div>
+          <div class="plan-mrr-val" id="pm-c">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tableau clients -->
+    <div class="section">
+      <div class="sec-hdr">
+        <div class="sec-title">Clients</div>
+        <span class="sec-badge" id="tbl-badge">—</span>
+        <button class="refresh-btn" onclick="reload()">↻ Actualiser</button>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap">
+          <span class="search-ico">⌕</span>
+          <input type="text" id="q" placeholder="Rechercher nom, email…" oninput="render()">
+        </div>
+        <button class="flt on" onclick="setFlt('all',this)">Tous</button>
+        <button class="flt" onclick="setFlt('benevole',this)">Bénévoles</button>
+        <button class="flt" onclick="setFlt('independant',this)">Indépendants</button>
+        <button class="flt" onclick="setFlt('cabinet',this)">Cabinets</button>
+        <div class="tbar-info" id="tbar-info"></div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Pack</th>
+              <th>Copropriétés</th>
+              <th>Lots</th>
+              <th>Inscription</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6"><div class="loading-row">Chargement…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const ADMIN  = 'sebastien95360@gmail.com';
+const PRICES = { benevole:9.9, independant:29.9, cabinet:79.9 };
+const LABELS = { benevole:'Bénévole', independant:'Indépendant', cabinet:'Cabinet' };
+
+const FB = {
+  apiKey:"AIzaSyCNfhw-S-vXz3fvzWrr6XckIKn1AlT_YCo",
+  authDomain:"syndicnova.firebaseapp.com",
+  projectId:"syndicnova",
+  storageBucket:"syndicnova.firebasestorage.app",
+  messagingSenderId:"501936876218",
+  appId:"1:501936876218:web:ccc8efb2ddf73a61df7083"
+};
+try{ firebase.initializeApp(FB); }catch(e){}
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+let USERS = [], FLT = 'all';
+
+// ── Auth ──
+function login() {
+  const e = document.getElementById('adm-email').value.trim();
+  const p = document.getElementById('adm-pwd').value;
+  const err = document.getElementById('auth-err');
+  err.textContent = '';
+  if(!e||!p){ err.textContent='Remplis tous les champs.'; return; }
+  auth.signInWithEmailAndPassword(e,p).catch(()=>{ err.textContent='Identifiants incorrects.'; });
+}
+
+auth.onAuthStateChanged(async user => {
+  const as = document.getElementById('auth-screen');
+  const ad = document.getElementById('admin');
+  if(!user){ as.style.display='flex'; ad.style.display='none'; return; }
+  if(user.email !== ADMIN){
+    auth.signOut();
+    document.getElementById('auth-err').textContent = 'Accès réservé à l\'administrateur.';
+    return;
+  }
+  as.style.display='none';
+  ad.style.display='flex';
+  document.getElementById('adm-lbl').textContent = user.email;
+  await load();
+});
+
+// ── Data ──
+async function load() {
+  try {
+    const [usersSnap, coprosSnap, lotsSnap] = await Promise.all([
+      db.collection('users').get(),
+      db.collection('coproprietes').get().catch(()=>({docs:[]})),
+      db.collection('lots').get().catch(()=>({docs:[]}))
+    ]);
+
+    const copros = {}, lots = {};
+    coprosSnap.docs.forEach(d => {
+      const uid = d.data().user_id;
+      if(uid) copros[uid] = (copros[uid]||0)+1;
+    });
+    lotsSnap.docs.forEach(d => {
+      const uid = d.data().user_id;
+      if(uid) lots[uid] = (lots[uid]||0)+1;
+    });
+
+    USERS = usersSnap.docs.map(d => ({
+      id:d.id, ...d.data(),
+      copros: copros[d.id]||0,
+      lots:   lots[d.id]||0
+    }));
+
+    renderKPI();
+    render();
+  } catch(e) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="6"><div class="empty-row"><div class="ei">⚠️</div>${e.message}</div></td></tr>`;
+  }
+}
+
+async function reload() { USERS=[]; document.getElementById('tbody').innerHTML='<tr><td colspan="6"><div class="loading-row">Chargement…</div></td></tr>'; await load(); }
+
+// ── KPI ──
+function renderKPI() {
+  const nb = USERS.filter(u=>u.plan==='benevole').length;
+  const ni = USERS.filter(u=>u.plan==='independant').length;
+  const nc = USERS.filter(u=>u.plan==='cabinet').length;
+  const mrr = nb*9.9 + ni*29.9 + nc*79.9;
+  const t = USERS.length;
+
+  set('k-total', t);
+  set('k-mrr',   fmtEur(mrr));
+  set('k-b', nb); set('k-i', ni); set('k-c', nc);
+  set('pc-b', nb); set('pc-i', ni); set('pc-c', nc);
+  set('pm-b', fmtEur(nb*9.9));
+  set('pm-i', fmtEur(ni*29.9));
+  set('pm-c', fmtEur(nc*79.9));
+  set('tbl-badge', t+' client'+(t>1?'s':''));
+}
+
+// ── Table ──
+function setFlt(f, btn) {
+  FLT = f;
+  document.querySelectorAll('.flt').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+
+function render() {
+  const q = (document.getElementById('q').value||'').toLowerCase();
+  const rows = USERS.filter(u => {
+    const okF = FLT==='all' || u.plan===FLT;
+    const okQ = !q || (u.nom||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q);
+    return okF && okQ;
+  });
+
+  set('tbar-info', rows.length+' résultat'+(rows.length>1?'s':''));
+
+  if(!rows.length) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="6"><div class="empty-row"><div class="ei">🔍</div>Aucun client trouvé</div></td></tr>`;
+    return;
+  }
+
+  document.getElementById('tbody').innerHTML = rows.map(u => {
+    const nom  = u.nom || u.email || '—';
+    const init = nom.trim().split(/\s+/).map(w=>w[0]).join('').toUpperCase().slice(0,2) || '?';
+    const plan = u.plan || 'benevole';
+    const date = u.created_at
+      ? fmtDate(u.created_at.toDate ? u.created_at.toDate() : new Date(u.created_at))
+      : '—';
+    const actif = u.onboarding_complete;
+    return `<tr>
+      <td>
+        <div class="user-cell">
+          <div class="avatar">${esc(init)}</div>
+          <div>
+            <div class="u-name">${esc(nom)}</div>
+            <div class="u-email">${esc(u.email||'')}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge ${plan}">${LABELS[plan]||plan}</span></td>
+      <td><span class="num">${u.copros}</span> <span class="num-unit">copro${u.copros>1?'s':''}</span></td>
+      <td><span class="num">${u.lots}</span> <span class="num-unit">lot${u.lots>1?'s':''}</span></td>
+      <td style="color:var(--text-sec);font-size:12px">${date}</td>
+      <td><span class="badge ${actif?'actif':'attente'}">${actif?'Actif':'En attente'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Utils ──
+function set(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+function fmtEur(n){ return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n||0); }
+function fmtDate(d){ return new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'short',year:'numeric'}).format(d); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
