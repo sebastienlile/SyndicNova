@@ -1077,11 +1077,11 @@ function obNext(n) {
 async function obFinish() {
   try {
     const uid = CU.uid;
-    await db.collection('users').doc(uid).update({
+    await db.collection('users').doc(uid).set({
       nom: qs('ob-nom').value.trim(), tel: qs('ob-tel').value.trim(),
       email_pro: qs('ob-email').value.trim(), adresse: qs('ob-adr').value.trim(),
       onboarding_complete: true
-    });
+    }, {merge:true});
     const cref = await db.collection('coproprietes').add({
       nom: qs('ob-cn').value.trim(), adresse: qs('ob-ca').value.trim(),
       nb_lots: parseInt(qs('ob-cl').value)||0, tantiemes_totaux: parseInt(qs('ob-ct').value)||1000,
@@ -1946,13 +1946,13 @@ async function loadProfil() {
 }
 async function saveProfil() {
   try {
-    await db.collection('users').doc(CU.uid).update({ nom:qs('p-nom').value, tel:qs('p-tel').value, adresse:qs('p-adr').value, cabinet:qs('p-cabinet').value });
+    await db.collection('users').doc(CU.uid).set({ nom:qs('p-nom').value, tel:qs('p-tel').value, adresse:qs('p-adr').value, cabinet:qs('p-cabinet').value }, {merge:true});
     toast('Profil enregistré ✓','s');
   } catch(e) { toast(e.message,'e'); }
 }
 async function saveNotif() {
   try {
-    await db.collection('users').doc(CU.uid).update({ notif_impayes:qs('n-imp').checked, notif_contrats:qs('n-ct').checked, notif_ag:qs('n-ag').checked, notif_appels:qs('n-ap').checked });
+    await db.collection('users').doc(CU.uid).set({ notif_impayes:qs('n-imp').checked, notif_contrats:qs('n-ct').checked, notif_ag:qs('n-ag').checked, notif_appels:qs('n-ap').checked }, {merge:true});
     toast('Préférences enregistrées ✓','s');
   } catch(e) { toast(e.message,'e'); }
 }
@@ -2007,7 +2007,7 @@ async function selectPlan(plan) {
 }
 async function confirmPlan() {
   if(!SELECTED_PLAN) return toast('Sélectionnez un plan','w');
-  await db.collection('users').doc(CU.uid).update({plan:SELECTED_PLAN});
+  await db.collection('users').doc(CU.uid).set({plan:SELECTED_PLAN}, {merge:true});
   qs('plan-tag').textContent = PLANS[SELECTED_PLAN].label;
   closeModal('mo-upgrade'); loadPlanInfo(); toast(`Plan ${PLANS[SELECTED_PLAN].label} activé ✓`,'s');
 }
